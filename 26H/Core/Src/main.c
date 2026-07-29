@@ -106,17 +106,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                 cnt++;
         if (cnt >= 3)
         {
-            /* 急停刹车 300ms, 然后滑行停止 */
-            Motor_EmergencyBrake(300);
+            /* 急停刹车 500ms, 然后滑行停止 */
+            Motor_EmergencyBrake(500);
             g_app_state = APP_ESTOP;
             return;
         }
 
         /* 15~16秒间线性减速至50%, 16秒后每秒再降1% */
-        if (g_run_ticks > 1500)
+        if (g_run_ticks > 1800)
         {
             float decay;
-            if (g_run_ticks < 1600)
+            if (g_run_ticks < 1900)
                 decay = 1.0f - 0.50f * (float)(g_run_ticks - 1500) / 100.0f;
             else
             {

@@ -1,7 +1,7 @@
 Dependencies for Project '26H', Target '26H': (DO NOT MODIFY !)
 CompilerVersion: 5060528::V5.06 update 5 (build 528)::.\ARMCC
 F (startup_stm32f411xe.s)(0x6A6A0610)(--cpu Cortex-M4.fp.sp -g --apcs=interwork -I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include--pd "__UVISION_VERSION SETA 543" --pd "STM32F411xE SETA 1" --pd "_RTE_ SETA 1"--list startup_stm32f411xe.lst --xref -o 26h\startup_stm32f411xe.o --depend 26h\startup_stm32f411xe.d)
-F (../Core/Src/main.c)(0x6A6A3019)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\User\Control -I ..\User\delay -I ..\User\Encoder -I ..\User\Motor -I ..\User\Key -I ..\User\OLED -I ..\User\Trace-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\main.o --omf_browse 26h\main.crf --depend 26h\main.d)
+F (../Core/Src/main.c)(0x6A6A35CA)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\User\Control -I ..\User\delay -I ..\User\Encoder -I ..\User\Motor -I ..\User\Key -I ..\User\OLED -I ..\User\Trace-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\main.o --omf_browse 26h\main.crf --depend 26h\main.d)
 I (../Core/Inc/main.h)(0x6A69FC47)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x6A4FBE0D)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x6A69CD96)
@@ -46,10 +46,10 @@ I (../Core/Inc/gpio.h)(0x6A69CD94)
 I (D:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x69286555)
 I (..\User\OLED\OLED.h)(0x6A6A021D)
 I (..\User\OLED\oledfont.h)(0x6A6A0220)
-I (..\User\Motor\motor.h)(0x6A6A236F)
+I (..\User\Motor\motor.h)(0x6A6A3466)
 I (..\User\Control\pid.h)(0x6A6A0221)
 I (..\User\Encoder\encoder.h)(0x6A6A0CBA)
-I (..\User\Control\track.h)(0x6A6A2FB5)
+I (..\User\Control\track.h)(0x6A6A34FD)
 I (..\User\Trace\trace.h)(0x6A6A0222)
 I (..\User\Key\key.h)(0x6A6A05C4)
 F (../Core/Src/gpio.c)(0x6A69FC44)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\User\Control -I ..\User\delay -I ..\User\Encoder -I ..\User\Motor -I ..\User\Key -I ..\User\OLED -I ..\User\Trace-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\gpio.o --omf_browse 26h\gpio.crf --depend 26h\gpio.d)
@@ -1120,7 +1120,7 @@ I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h)(0x6A4FBE0D)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h)(0x6A4FBE0E)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h)(0x6A4FBE0E)
 F (..\User\Control\track.c)(0x6A6A2E2D)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\User\Control -I ..\User\delay -I ..\User\Encoder -I ..\User\Motor -I ..\User\Key -I ..\User\OLED -I ..\User\Trace-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\track.o --omf_browse 26h\track.crf --depend 26h\track.d)
-I (..\User\Control\track.h)(0x6A6A2FB5)
+I (..\User\Control\track.h)(0x6A6A34FD)
 I (../Core/Inc/main.h)(0x6A69FC47)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x6A4FBE0D)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x6A69CD96)
@@ -1157,7 +1157,7 @@ I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h)(0x6A4FBE0D)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h)(0x6A4FBE0E)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h)(0x6A4FBE0E)
 I (..\User\Control\pid.h)(0x6A6A0221)
-I (..\User\Motor\motor.h)(0x6A6A236F)
+I (..\User\Motor\motor.h)(0x6A6A3466)
 I (..\User\Trace\trace.h)(0x6A6A0222)
 I (D:\Keil_v5\ARM\ARMCC\include\string.h)(0x69286555)
 F (..\User\delay\delay.c)(0x6A6A0221)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\User\Control -I ..\User\delay -I ..\User\Encoder -I ..\User\Motor -I ..\User\Key -I ..\User\OLED -I ..\User\Trace-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\delay.o --omf_browse 26h\delay.crf --depend 26h\delay.d)
@@ -1273,7 +1273,7 @@ I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h)(0x6A4FBE0D)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h)(0x6A4FBE0E)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h)(0x6A4FBE0E)
 F (..\User\Motor\motor.c)(0x6A6A236F)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ..\User\Control -I ..\User\delay -I ..\User\Encoder -I ..\User\Motor -I ..\User\Key -I ..\User\OLED -I ..\User\Trace-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\motor.o --omf_browse 26h\motor.crf --depend 26h\motor.d)
-I (..\User\Motor\motor.h)(0x6A6A236F)
+I (..\User\Motor\motor.h)(0x6A6A3466)
 I (../Core/Inc/main.h)(0x6A69FC47)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x6A4FBE0D)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x6A69CD96)
