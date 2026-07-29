@@ -1,0 +1,17 @@
+# Keil MDK
+MDK-ARM/26H/*.o
+MDK-ARM/26H/*.d
+MDK-ARM/26H/*.crf
+MDK-ARM/26H/*.axf
+MDK-ARM/26H/*.hex
+MDK-ARM/26H/*.htm
+MDK-ARM/26H/*.lnp
+MDK-ARM/26H/*.map
+MDK-ARM/26H/*.dep
+MDK-ARM/26H/*.sct
+MDK-ARM/26H/*.build_log.htm
+MDK-ARM/DebugConfig/
+MDK-ARM/RTE/
+MDK-ARM/*.uvguix.*
+MDK-ARM/*.lst
+MDK-ARM/startup_stm32f411xb.s
