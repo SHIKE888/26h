@@ -1,0 +1,82 @@
+/**
+ * @file    key.c
+ * @brief   单按键驱动实现 — F411 适配
+ * @note    KEY(PA0), 上拉输入, 按下=低电平
+ *          Key_Scan() 每次调用不阻塞, 依赖 HAL_GetTick()
+ */
+
+#include "key.h"
+
+/* ========================== 状态机 =================================== */
+typedef enum
+{
+    KS_IDLE,     /* 空闲 */
+    KS_DEBOUNCE, /* 消抖 */
+    KS_PRESSED,  /* 按下中 */
+    KS_LONG,     /* 长按已触发 */
+} KeyState;
+
+static KeyState ks = KS_IDLE;
+static uint32_t press_tick = 0;
+
+/* ========================== 初始化 =================================== */
+void Key_Init(void)
+{
+    ks = KS_IDLE;
+    press_tick = 0;
+}
+
+/* ========================== 扫描 ===================================== */
+uint8_t Key_Scan(void)
+{
+    uint8_t pressed = (HAL_GPIO_ReadPin(KEY_GPIO_Port, KEY_Pin) == GPIO_PIN_RESET);
+    uint32_t now = HAL_GetTick();
+    uint8_t event = KEY_EVENT_NONE;
+
+    switch (ks)
+    {
+    case KS_IDLE:
+        if (pressed)
+        {
+            ks = KS_DEBOUNCE;
+            press_tick = now;
+        }
+        break;
+
+    case KS_DEBOUNCE:
+        if ((now - press_tick) >= KEY_DEBOUNCE_MS)
+        {
+            if (pressed)
+            {
+                ks = KS_PRESSED;
+            }
+            else
+            {
+                ks = KS_IDLE;
+            }
+        }
+        break;
+
+    case KS_PRESSED:
+        if (!pressed)
+        {
+            event = KEY_EVENT_SHORT;
+            ks = KS_IDLE;
+        }
+        else if ((now - press_tick) >= KEY_LONG_PRESS_MS)
+        {
+            event = KEY_EVENT_LONG;
+            ks = KS_LONG;
+        }
+        break;
+
+    case KS_LONG:
+        if (!pressed)
+        {
+            ks = KS_IDLE;
+        }
+        break;
+    }
+
+    return event;
+}
