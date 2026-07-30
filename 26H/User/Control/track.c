@@ -67,6 +67,7 @@ void Track_Init(void)
 void Track_Start(void)
 {
     g_track.state = TRACK_RUN;
+    g_track.no_stop_on_lost = 1; /* 丢线不刹车, 靠惯性滑行找回 */
     g_track.last_error = 0;
     PID_Reset(&g_track.pid_line);
 }

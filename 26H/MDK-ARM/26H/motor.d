@@ -36,6 +36,6 @@
 26h\motor.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
 26h\motor.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 26h\motor.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
-26h\motor.o: ..\User\Control\pid.h
+26h\motor.o: ../User/Control/pid.h
 26h\motor.o: ../Core/Inc/tim.h
-26h\motor.o: ..\User\Encoder\encoder.h
+26h\motor.o: ../User/Encoder/encoder.h

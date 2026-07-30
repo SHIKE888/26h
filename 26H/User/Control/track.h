@@ -10,11 +10,11 @@
 #include "pid.h"
 
 /* ======================== 循迹调参宏 (快速调整) ======================== */
-#define TRACK_BASE_SPEED_DEFAULT 600  /* 默认基础速度 (编码器原始值) */
+#define TRACK_BASE_SPEED_DEFAULT 1000  /* 默认基础速度 (编码器原始值) */
 #define TRACK_TURN_LIMIT_DEFAULT 1500 /* 转弯差速上限 */
-#define TRACK_LINE_KP_DEFAULT 0.05f
-#define TRACK_LINE_KI_DEFAULT 0.0004f
-#define TRACK_LINE_KD_DEFAULT 0.8f
+#define TRACK_LINE_KP_DEFAULT 0.08f
+#define TRACK_LINE_KI_DEFAULT 0.0006f
+#define TRACK_LINE_KD_DEFAULT 1.0f
 #define TRACK_LINE_ALPHA_DEFAULT 0.0f
 
 typedef enum

@@ -37,6 +37,6 @@
 26h\track.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 26h\track.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
 26h\track.o: ..\User\Control\pid.h
-26h\track.o: ..\User\Motor\motor.h
-26h\track.o: ..\User\Trace\trace.h
+26h\track.o: ../User/Motor/motor.h
+26h\track.o: ../User/Trace/trace.h
 26h\track.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
