@@ -22,5 +22,6 @@
 /* ========================== 函数声明 ================================= */
 void Key_Init(void);
 uint8_t Key_Scan(void);
+uint8_t KeyL_Scan(void);
 
 #endif /* KEY_KEY_H_ */

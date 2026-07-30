@@ -1,21 +1,21 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file    gpio.c
-  * @brief   This file provides code for the configuration
-  *          of all used GPIO pins.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2026 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file    gpio.c
+ * @brief   This file provides code for the configuration
+ *          of all used GPIO pins.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2026 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
@@ -63,16 +63,14 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : KEY_Pin */
-  GPIO_InitStruct.Pin = KEY_Pin;
+  /*Configure GPIO pins : KEY_Pin KEY_L_Pin KEY_R_Pin */
+  GPIO_InitStruct.Pin = KEY_Pin|KEY_L_Pin|KEY_R_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(KEY_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : KEY_L_Pin TRACE0_Pin TRACE1_Pin TRACE2_Pin
-                           TRACE3_Pin KEY_R_Pin */
-  GPIO_InitStruct.Pin = KEY_L_Pin|TRACE0_Pin|TRACE1_Pin|TRACE2_Pin
-                          |TRACE3_Pin|KEY_R_Pin;
+  /*Configure GPIO pins : TRACE0_Pin TRACE1_Pin TRACE2_Pin TRACE3_Pin */
+  GPIO_InitStruct.Pin = TRACE0_Pin|TRACE1_Pin|TRACE2_Pin|TRACE3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);

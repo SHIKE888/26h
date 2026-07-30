@@ -39,6 +39,8 @@
 "26h\oled.o"
 "26h\oledfont.o"
 "26h\trace.o"
+"26h\step_motor.o"
+"26h\k230_uart.o"
 --strict --scatter "26H\26H.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

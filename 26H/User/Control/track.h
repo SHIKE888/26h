@@ -12,7 +12,7 @@
 /* ======================== 循迹调参宏 (快速调整) ======================== */
 #define TRACK_BASE_SPEED_DEFAULT 1000  /* 默认基础速度 (编码器原始值) */
 #define TRACK_TURN_LIMIT_DEFAULT 1500 /* 转弯差速上限 */
-#define TRACK_LINE_KP_DEFAULT 0.08f
+#define TRACK_LINE_KP_DEFAULT 0.08f  //速度600用0.05，速度1000用0.08
 #define TRACK_LINE_KI_DEFAULT 0.0006f
 #define TRACK_LINE_KD_DEFAULT 1.0f
 #define TRACK_LINE_ALPHA_DEFAULT 0.0f

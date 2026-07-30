@@ -19,11 +19,16 @@ typedef enum
 static KeyState ks = KS_IDLE;
 static uint32_t press_tick = 0;
 
+static KeyState ks_l = KS_IDLE;
+static uint32_t press_tick_l = 0;
+
 /* ========================== 初始化 =================================== */
 void Key_Init(void)
 {
     ks = KS_IDLE;
     press_tick = 0;
+    ks_l = KS_IDLE;
+    press_tick_l = 0;
 }
 
 /* ========================== 扫描 ===================================== */
@@ -75,6 +80,56 @@ uint8_t Key_Scan(void)
         {
             ks = KS_IDLE;
         }
+        break;
+    }
+
+    return event;
+}
+
+/* ========================== KEY_L 扫描 (PA1) ========================= */
+
+uint8_t KeyL_Scan(void)
+{
+    uint8_t pressed = (HAL_GPIO_ReadPin(KEY_L_GPIO_Port, KEY_L_Pin) == GPIO_PIN_RESET);
+    uint32_t now = HAL_GetTick();
+    uint8_t event = KEY_EVENT_NONE;
+
+    switch (ks_l)
+    {
+    case KS_IDLE:
+        if (pressed)
+        {
+            ks_l = KS_DEBOUNCE;
+            press_tick_l = now;
+        }
+        break;
+
+    case KS_DEBOUNCE:
+        if ((now - press_tick_l) >= KEY_DEBOUNCE_MS)
+        {
+            if (pressed)
+                ks_l = KS_PRESSED;
+            else
+                ks_l = KS_IDLE;
+        }
+        break;
+
+    case KS_PRESSED:
+        if (!pressed)
+        {
+            event = KEY_EVENT_SHORT;
+            ks_l = KS_IDLE;
+        }
+        else if ((now - press_tick_l) >= KEY_LONG_PRESS_MS)
+        {
+            event = KEY_EVENT_LONG;
+            ks_l = KS_LONG;
+        }
+        break;
+
+    case KS_LONG:
+        if (!pressed)
+            ks_l = KS_IDLE;
         break;
     }
 

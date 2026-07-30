@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F411xE</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../User/Control;../User/delay;../User/Encoder;../User/Motor;../User/Key;../User/OLED;../User/Trace</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../User/Control;../User/delay;../User/Encoder;../User/Motor;../User/Key;../User/OLED;../User/Trace;..\User\Task</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -654,6 +654,16 @@
               <FileName>trace.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\User\Trace\trace.c</FilePath>
+            </File>
+            <File>
+              <FileName>step_motor.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Motor\step_motor.c</FilePath>
+            </File>
+            <File>
+              <FileName>k230_uart.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Task\k230_uart.c</FilePath>
             </File>
           </Files>
         </Group>

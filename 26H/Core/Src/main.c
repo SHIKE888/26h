@@ -35,6 +35,8 @@
 #include "track.h"
 #include "trace.h"
 #include "key.h"
+#include "step_motor.h"
+#include "k230_uart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -171,9 +173,19 @@ int main(void)
     Track_Init();
     Motor_SpeedControl_Init();
 
+    /* ---- 张大头步进电机初始化 (USART6, 地址=0x01) ---- */
+    StepMotor_Init(&g_step_motor,
+                   STEP_MOTOR_DEFAULT_ADDR,
+                   STEP_MOTOR_DEFAULT_SPEED,
+                   STEP_MOTOR_DEFAULT_ACC);
+    StepMotor_Enable(&g_step_motor, 1); /* 使能电机 */
+
     OLED_Clear();
     OLED_ShowString(0, 0, "Press KEY", 12, 0);
     OLED_ShowString(0, 1, "to START", 12, 0);
+
+    /* ---- K230 视觉模块 UART 接收 ---- */
+    K230_UART_Init();
 
     /* 启动 TIM1 周期中断 (10ms, 需 CubeMX 中 TIM1 ARR=9999) */
     HAL_TIM_Base_Start_IT(&htim1);
@@ -188,6 +200,20 @@ int main(void)
         /* USER CODE BEGIN 3 */
         /* ---- 按键扫描 ---- */
         uint8_t key = Key_Scan();
+        uint8_t key_l = KeyL_Scan();
+
+        /* ---- KEY_L 短按: 切换步进电机使能/失能 ---- */
+        if (key_l == KEY_EVENT_SHORT)
+        {
+            static uint8_t step_motor_enabled = 1;
+            step_motor_enabled = !step_motor_enabled;
+            StepMotor_Enable(&g_step_motor, step_motor_enabled);
+            if (step_motor_enabled)
+            {
+                HAL_Delay(200);                /* 等待使能生效 */
+                StepMotor_Home(&g_step_motor); /* 执行回零 */
+            }
+        }
 
         /* ---- 状态机 ---- */
         switch (g_app_state)
@@ -287,6 +313,26 @@ int main(void)
                      (int)(g_target_speed_b - g_speed_snapshot_b),
                      (int)g_track.base_speed);
             OLED_ShowString(0, 5, buf, 12, 0);
+
+            /* ---- 第6-7行: K230 钢球检测数据 ---- */
+            {
+                uint16_t x = g_k230_data.x;
+                uint16_t y = g_k230_data.y;
+                uint16_t t = g_k230_data.target;
+
+                if (x == 65535)
+                    snprintf(buf, sizeof(buf), "Ball: ---/--- T%d", t);
+                else
+                    snprintf(buf, sizeof(buf), "Ball: %3u,%3u T%d", x, y, t);
+                OLED_ShowString(0, 6, buf, 12, 0);
+
+                /* 偏差: 目标X - 当前X */
+                if (x != 65535)
+                    snprintf(buf, sizeof(buf), "Dlt: %+d", (int)t - (int)x);
+                else
+                    snprintf(buf, sizeof(buf), "Dlt: ---");
+                OLED_ShowString(0, 7, buf, 12, 0);
+            }
 
             /* ---- 串口1遥测: 目标速度A,实际速度A,目标速度B,实际速度B ---- */
             {

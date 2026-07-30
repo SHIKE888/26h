@@ -50,3 +50,5 @@
 26h\main.o: ../User/Control/track.h
 26h\main.o: ../User/Trace/trace.h
 26h\main.o: ../User/Key/key.h
+26h\main.o: ../User/Motor/step_motor.h
+26h\main.o: ..\User\Task\k230_uart.h
