@@ -156,19 +156,32 @@ void BallBalance_Tick(void)
     if (output < BAL_ANGLE_MIN)
         output = BAL_ANGLE_MIN;
 
-    /* ---- 4. 死区: 误差很小时不动作, 避免抖动 ---- */
-    if (ABSF(error) < 2.0f && ABSF(output) < 0.5f)
+    /* ---- 4. 死区: 误差很小时不动作, 分级抑制 ---- */
+    float abs_err = ABSF(error);
+    if (abs_err < 1.5f)
     {
+        /* 极小误差: 完全停止输出, 冻结积分 */
         output = 0.0f;
-        /* 不清零积分！保留稳态修正力, 球偏移时自动恢复 */
     }
+    else if (abs_err < 5.0f && ABSF(output) < 1.5f)
+    {
+        /* 小误差 + 小输出: 衰减输出, 抑制震荡 */
+        output *= 0.5f;
+    }
+    /* 积分仅在误差 > 4px 时累积 (已在上面处理) */
 
-    /* ---- 5. 限速: 限制每周期角度变化量, 实现平滑加速 ---- */
+    /* ---- 5. 接近减速: 距离目标越近步长越小, 防止超调 ---- */
     float delta = output - g_cur_angle;
-    float max_step = 0.8f;
+    float max_step;
+    if (abs_err < 8.0f)
+        max_step = 0.5f; /* 接近目标: 精细调节, 50°/s */
+    else if (abs_err < 30.0f)
+        max_step = 1.5f; /* 中等距离: 正常速度, 150°/s */
+    else
+        max_step = 3.0f; /* 远距离: 全速靠近, 300°/s */
     if (delta > max_step)
         delta = max_step;
-    if (delta < -max_step)
+    else if (delta < -max_step)
         delta = -max_step;
     g_cur_angle += delta;
 
@@ -269,14 +282,17 @@ uint8_t BallBalance_IsPaused(void)
 }
 
 /**
- * @brief 动态设置目标 X 坐标 (不重置滤波器, PID 自然收敛)
+ * @brief 动态设置目标 X 坐标
  */
 void BallBalance_SetTarget(float target_x)
 {
+    if (g_target_x != target_x)
+    {
+        /* 目标确实变了，重置积分和微分防止跳变 */
+        g_i_error = 0.0f;
+        g_prev_error = 0.0f;
+    }
     g_target_x = target_x;
-    /* 注意: 不重置 g_filtered_x, PID 会自然驱动到新目标 */
-    g_i_error = 0.0f;
-    g_prev_error = 0.0f;
 }
 
 /**

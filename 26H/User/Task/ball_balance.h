@@ -18,12 +18,12 @@
 #include "stm32f4xx_hal.h"
 
 /* ---- PID 参数 (可在线调整) ---- */
-#define BAL_KP 0.018f /* 比例增益 (deg/pixel) */
-#define BAL_KD 5.0f   /* 微分增益 */
-#define BAL_KI 0.076f /* 积分增益 (小值, 消除稳态误差) */
+#define BAL_KP 0.01f /* 比例增益 (deg/pixel) */
+#define BAL_KD 8.0f   /* 微分增益 */
+#define BAL_KI 0.06f /* 积分增益 (小值, 消除稳态误差) */
 
 /* ---- 滤波器 ---- */
-#define BAL_EMA_ALPHA 0.30f /* EMA 平滑系数 (0~1, 越小越平滑) */
+#define BAL_EMA_ALPHA 0.60f /* EMA 平滑系数 (0~1, 越小越平滑) */
 
 /* ---- 限位 ---- */
 #define BAL_ANGLE_MAX 30.0f  /* 最大倾斜角 (°) */
@@ -37,29 +37,30 @@
 
 /* ---- 电机参数 ---- */
 #define BAL_MOTOR_SPEED 300 /* 转速 (RPM) */
-#define BAL_MOTOR_ACC 0x60  /* 加速度 */
+#define BAL_MOTOR_ACC 0x80  /* 加速度 — 平滑响应 */
 
 /* ---- 前馈参数 ---- */
-#define BAL_FF_K 0.15f        /* 加速度前馈系数 (初值, 需实测标定) */
-#define BAL_FF_DEADBAND 2.0f  /* 前馈死区: |加速度|低于此值不补偿 */
+#define BAL_FF_K 0.15f       /* 加速度前馈系数 (初值, 需实测标定) */
+#define BAL_FF_DEADBAND 2.0f /* 前馈死区: |加速度|低于此值不补偿 */
 
 /* ---- F2 自主演示参数 ---- */
-#define BAL_DEMO_TARGET_POS  5.0f   /* 目标位置 +5cm */
-#define BAL_DEMO_TARGET_NEG -5.0f   /* 目标位置 -5cm */
-#define BAL_DEMO_MAX_LIMIT   6.0f   /* 最大位移限制 (cm) */
-#define BAL_DEMO_TOLERANCE   0.8f   /* 到达容差 (cm) */
+#define BAL_DEMO_TARGET_POS 5.0f  /* 目标位置 +5cm */
+#define BAL_DEMO_TARGET_NEG -5.0f /* 目标位置 -5cm */
+#define BAL_DEMO_MAX_LIMIT 6.0f   /* 最大位移限制 (cm) */
+#define BAL_DEMO_TOLERANCE 0.8f   /* 到达容差 (cm) */
 
 /* ---- F5 自定义目标采样 ---- */
-#define BAL_CUSTOM_SAMPLE_COUNT 10  /* 采样次数 */
-#define BAL_CUSTOM_SAMPLE_MS   50   /* 采样间隔 (ms) */
+#define BAL_CUSTOM_SAMPLE_COUNT 10 /* 采样次数 */
+#define BAL_CUSTOM_SAMPLE_MS 50    /* 采样间隔 (ms) */
 
 /* ---- F2 自主演示阶段 ---- */
-typedef enum {
-    BAL_DEMO_IDLE = 0,   /* 等待启动 */
-    BAL_DEMO_TO_POS,     /* 移向 +5cm */
-    BAL_DEMO_BAL_POS,    /* 平衡在 +5cm */
-    BAL_DEMO_TO_NEG,     /* 移向 -5cm */
-    BAL_DEMO_BAL_NEG,    /* 平衡在 -5cm */
+typedef enum
+{
+    BAL_DEMO_IDLE = 0, /* 等待启动 */
+    BAL_DEMO_TO_POS,   /* 移向 +5cm */
+    BAL_DEMO_BAL_POS,  /* 平衡在 +5cm */
+    BAL_DEMO_TO_NEG,   /* 移向 -5cm */
+    BAL_DEMO_BAL_NEG,  /* 平衡在 -5cm */
 } BallDemoPhase;
 
 /* ---- 初始化 ---- */

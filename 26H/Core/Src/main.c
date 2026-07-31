@@ -346,7 +346,9 @@ int main(void)
                     break;
 
                 case MODE_BALL_DEMO:
-                    /* F2: 平衡已在模式切换时启动, 这里启动自主演示 */
+                    /* F2: 启动自主演示, 目标从 0cm → +5cm */
+                    BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_POS * 40.0f);
+                    BallBalance_Resume();
                     g_ball_demo_active = 1;
                     g_ball_demo_phase = BAL_DEMO_TO_POS;
                     g_run_limit = 0;
@@ -408,12 +410,12 @@ int main(void)
                 /* KEY_L 短按: 切换到上一个模式 */
                 g_mode = (FuncMode)((g_mode == 0) ? (MODE_COUNT - 1) : ((int)g_mode - 1));
                 g_oled_tick = 0;
-                /* F2/F3/F4: 选中即自动启动零点平衡 */
+                /* F2/F3/F4: 选中即自动启动零点平衡 (保持在 IDLE, 等待 KEY 启动功能) */
                 if (g_mode == MODE_BALL_DEMO || g_mode == MODE_DUAL_8S || g_mode == MODE_DUAL_30S)
                 {
                     BallBalance_SetTarget(400.0f);
                     BallBalance_Resume();
-                    g_state = STATE_RUNNING;
+                    /* 不改变 g_state, 保持在 IDLE */
                 }
                 /* F5: 选中即执行回零 */
                 if (g_mode == MODE_DUAL_CUSTOM)
@@ -427,12 +429,12 @@ int main(void)
                 /* KEY_R 短按: 切换到下一个模式 */
                 g_mode = (FuncMode)(((int)g_mode + 1) % (int)MODE_COUNT);
                 g_oled_tick = 0;
-                /* F2/F3/F4: 选中即自动启动零点平衡 */
+                /* F2/F3/F4: 选中即自动启动零点平衡 (保持在 IDLE) */
                 if (g_mode == MODE_BALL_DEMO || g_mode == MODE_DUAL_8S || g_mode == MODE_DUAL_30S)
                 {
                     BallBalance_SetTarget(400.0f);
                     BallBalance_Resume();
-                    g_state = STATE_RUNNING;
+                    /* 不改变 g_state */
                 }
                 /* F5: 选中即执行回零 */
                 if (g_mode == MODE_DUAL_CUSTOM)
