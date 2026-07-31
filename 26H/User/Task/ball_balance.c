@@ -33,10 +33,9 @@ static float g_i_error = 0.0f;
 static float g_cur_angle = 0.0f;
 static float g_ff_accel = 0.0f; /* 前馈加速度 (cm/s²) */
 static uint32_t g_last_valid_tick = 0;
-static volatile float g_pending_angle = 0.0f;   /* 待发送的目标角度 */
-static volatile uint8_t g_angle_dirty = 0;      /* 角度已更新标志 */
-static volatile uint8_t g_paused = 0;           /* 暂停标志: 1=暂停平衡控制 */
-static BallBalance_Mode g_mode = BAL_MODE_K230; /* 操作模式 */
+static volatile float g_pending_angle = 0.0f; /* 待发送的目标角度 */
+static volatile uint8_t g_angle_dirty = 0;    /* 角度已更新标志 */
+static volatile uint8_t g_paused = 0;         /* 暂停标志: 1=暂停平衡控制 */
 
 /*  API
  * ========================================================================== */
@@ -83,6 +82,7 @@ void BallBalance_Tick(void)
         /* 异常值剔除: 坐标应在合理范围 (0~800) */
         if (x_val >= 0.0f && x_val <= 800.0f)
         {
+            /* 所有模式均使用 K230 实时 X 坐标作为 PID 反馈 */
             /* EMA 一阶低通滤波 */
             g_filtered_x = BAL_EMA_ALPHA * x_val + (1.0f - BAL_EMA_ALPHA) * g_filtered_x;
 
@@ -119,15 +119,30 @@ void BallBalance_Tick(void)
     float error = g_filtered_x - g_target_x; /* 像素误差 */
     float d_error = error - g_prev_error;    /* 误差微分 */
 
-    /* 积分项 (带抗饱和限幅) */
-    g_i_error += error * (BAL_CTRL_PERIOD_MS / 1000.0f);
-    if (g_i_error > 50.0f)
-        g_i_error = 50.0f;
-    if (g_i_error < -50.0f)
-        g_i_error = -50.0f;
+    /* 积分项 (带抗饱和限幅 + 容差内抑制) */
+    if (ABSF(error) > 2.0f) /* 容差范围内不累积积分 */
+    {
+        g_i_error += error * (BAL_CTRL_PERIOD_MS / 1000.0f);
+    }
+    if (g_i_error > 100.0f)
+        g_i_error = 100.0f;
+    if (g_i_error < -100.0f)
+        g_i_error = -100.0f;
+
+    /* ---- 启动补偿: 仅在球明显偏离且静止时触发 ---- */
+    static uint32_t kick_cooldown_tick = 0;
+    float kick = 0.0f;
+    if (ABSF(error) > 15.0f && ABSF(d_error) < 1.0f)
+    {
+        if (HAL_GetTick() - kick_cooldown_tick > 500)
+        {
+            kick = (error > 0) ? 2.5f : -2.5f;
+            kick_cooldown_tick = HAL_GetTick();
+        }
+    }
 
     /* PD+PI 输出, 取负 (正误差→右倾→负角度) */
-    float output = -(BAL_KP * error + BAL_KD * d_error + BAL_KI * g_i_error);
+    float output = -(BAL_KP * error + BAL_KD * d_error + BAL_KI * g_i_error) + kick;
 
     /* ---- 前馈补偿: 底盘加减速时补偿惯性力 ---- */
     if (g_ff_accel > BAL_FF_DEADBAND || g_ff_accel < -BAL_FF_DEADBAND)
@@ -145,7 +160,7 @@ void BallBalance_Tick(void)
     if (ABSF(error) < 2.0f && ABSF(output) < 0.5f)
     {
         output = 0.0f;
-        g_i_error = 0.0f;
+        /* 不清零积分！保留稳态修正力, 球偏移时自动恢复 */
     }
 
     /* ---- 5. 限速: 限制每周期角度变化量, 实现平滑加速 ---- */
@@ -163,13 +178,16 @@ void BallBalance_Tick(void)
     if (g_cur_angle < BAL_ANGLE_MIN)
         g_cur_angle = BAL_ANGLE_MIN;
 
-    /* ---- 6. 动态调速: 大偏差时提高转速 ---- */
-    if (ABSF(error) > 50.0f)
-        g_step_motor.speed = BAL_MOTOR_SPEED;
-    else if (ABSF(error) > 20.0f)
-        g_step_motor.speed = 200;
-    else
-        g_step_motor.speed = 120;
+    /* ---- 6. 动态调速: 误差越大转速越高, 平滑过渡 ---- */
+    {
+        float abs_err = ABSF(error);
+        float ratio = abs_err / 150.0f; /* 150像素=全速阈值 */
+        if (ratio > 1.0f)
+            ratio = 1.0f;
+        if (ratio < 0.05f)
+            ratio = 0.05f; /* 最低 5% = 20 RPM, 避免停转 */
+        g_step_motor.speed = (uint16_t)(20.0f + ratio * (float)(BAL_MOTOR_SPEED - 20));
+    }
 
     g_step_motor.acc = BAL_MOTOR_ACC;
 
@@ -264,11 +282,6 @@ void BallBalance_SetTarget(float target_x)
 /**
  * @brief 设置操作模式 (K230 反馈 / 自主内部目标)
  */
-void BallBalance_SetMode(BallBalance_Mode mode)
-{
-    g_mode = mode;
-}
-
 /**
  * @brief 设置前馈加速度 (底盘加减速补偿)
  * @param accel 底盘加速度 (cm/s²), 正值=加速, 负值=减速

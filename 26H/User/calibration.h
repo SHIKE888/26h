@@ -4,15 +4,17 @@
  * @note    长按 KEY_L 进入标定模式, 支持三步采样、Flash 存储
  *
  * 三步标定:
- *   N0 = 0cm   (中心) 视觉坐标
- *   N1 = +11.5cm        视觉坐标
- *   N2 = -11.5cm        视觉坐标
+ *   N0 = 0cm  (中心) 视觉坐标
+ *   N1 = +5cm        视觉坐标
+ *   N2 = -5cm        视觉坐标
  *
  * 映射公式 (后续使用):
- *   pixel_to_cm(p) = A + B * p
- *   其中: slope  = 23.0 / (N1 - N2)
+ *   pixel_to_cm(p) = offset + slope * p
+ *   其中: slope  = 10.0 / (N1 - N2)
  *         offset = -slope * N0
  *         cm(x)  = offset + slope * x
+ *
+ *   逆变换: cm_to_pixel(c) = (c - offset) / slope
  */
 
 #ifndef CALIBRATION_H_
@@ -86,5 +88,8 @@ uint8_t Calibration_IsValid(void);
 
 /** @brief 将像素坐标转为物理 cm */
 float Calibration_PixelToCm(uint16_t pixel_x);
+
+/** @brief 将物理 cm 转为像素坐标 (逆映射) */
+float Calibration_CmToPixel(float cm);
 
 #endif /* CALIBRATION_H_ */

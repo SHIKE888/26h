@@ -211,7 +211,25 @@ float Calibration_PixelToCm(uint16_t pixel_x)
     float denom = n1 - n2;
     if (denom < 0.1f && denom > -0.1f)
         denom = 1.0f;
-    float slope = 23.0f / denom;
+    float slope = 10.0f / denom; /* 标距 = 10cm (±5cm) */
     float offset = -slope * n0;
     return offset + slope * (float)pixel_x;
+}
+
+/**
+ * @brief 将物理 cm 转为像素坐标 (像素 = (cm - offset) / slope)
+ */
+float Calibration_CmToPixel(float cm)
+{
+    if (!Calibration_IsValid())
+        return 400.0f; /* 默认中心 */
+    float n0 = g_cal_data.n0;
+    float n1 = g_cal_data.n1;
+    float n2 = g_cal_data.n2;
+    float denom = n1 - n2;
+    if (denom < 0.1f && denom > -0.1f)
+        denom = 1.0f;
+    float slope = 10.0f / denom;
+    float offset = -slope * n0;
+    return (cm - offset) / slope;
 }

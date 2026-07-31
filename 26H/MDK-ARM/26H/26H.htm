@@ -3,7 +3,7 @@
 <title>Static Call Graph - [26H\26H.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image 26H\26H.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060528: Last Updated: Fri Jul 31 20:54:33 2026
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060528: Last Updated: Fri Jul 31 23:01:18 2026
 <BR><P>
 <H3>Maximum Stack Usage =        384 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -847,8 +847,8 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[6a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[99]"></a>BallBalance_Tick</STRONG> (Thumb, 574 bytes, Stack size 24 bytes, ball_balance.o(i.BallBalance_Tick))
-<BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = BallBalance_Tick
+<P><STRONG><a name="[99]"></a>BallBalance_Tick</STRONG> (Thumb, 722 bytes, Stack size 48 bytes, ball_balance.o(i.BallBalance_Tick))
+<BR><BR>[Stack]<UL><LI>Max Depth = 48<LI>Call Chain = BallBalance_Tick
 </UL>
 <BR>[Calls]<UL><LI><a href="#[96]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 </UL>
@@ -1426,7 +1426,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[123]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Motor_Init
 </UL>
 
-<P><STRONG><a name="[e1]"></a>HAL_TIM_PeriodElapsedCallback</STRONG> (Thumb, 248 bytes, Stack size 16 bytes, main.o(i.HAL_TIM_PeriodElapsedCallback))
+<P><STRONG><a name="[e1]"></a>HAL_TIM_PeriodElapsedCallback</STRONG> (Thumb, 290 bytes, Stack size 16 bytes, main.o(i.HAL_TIM_PeriodElapsedCallback))
 <BR><BR>[Stack]<UL><LI>Max Depth = 184<LI>Call Chain = HAL_TIM_PeriodElapsedCallback &rArr; OLED_Clear &rArr; OLED_WR_DATA &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Track_Stop
@@ -2124,7 +2124,7 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[77]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__printf
 </UL>
 
-<P><STRONG><a name="[6a]"></a>main</STRONG> (Thumb, 2876 bytes, Stack size 136 bytes, main.o(i.main))
+<P><STRONG><a name="[6a]"></a>main</STRONG> (Thumb, 2866 bytes, Stack size 136 bytes, main.o(i.main))
 <BR><BR>[Stack]<UL><LI>Max Depth = 384 + Unknown Stack Size
 <LI>Call Chain = main &rArr; OLED_ShowNum &rArr; OLED_ShowChar &rArr; OLED_Set_Pos &rArr; OLED_WR_CMD &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 </UL>

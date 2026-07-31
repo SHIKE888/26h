@@ -112,7 +112,6 @@ static uint32_t g_custom_sample_tick = 0;
 /* F2 自主演示 */
 static uint8_t g_ball_demo_active = 0; /* F2 已启动 */
 static BallDemoPhase g_ball_demo_phase = BAL_DEMO_IDLE;
-static uint32_t g_ball_demo_hold_tick = 0; /* 折返前稳定计时 */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -180,13 +179,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
         Track_Process(g_trace_status);
 
-        /* 前馈: 计算底盘加速度 → 传给平衡球系统 */
+        /* 前馈: 计算底盘加速度 → 传给平衡球系统 (平滑版, 避免转向抖动) */
         if (g_mode >= MODE_DUAL_8S)
         {
             int32_t avg_target = (g_target_speed_a + g_target_speed_b) / 2;
-            float accel = (float)(avg_target - g_prev_target_speed) / 10.0f; /* cm/s² */
+            /* 对 avg_target 做 EMA 平滑, 滤除转向差速的高频分量 */
+            static float smooth_speed = 0.0f;
+            smooth_speed = 0.15f * (float)avg_target + 0.85f * smooth_speed;
+            float accel = (smooth_speed - (float)g_prev_target_speed) / 10.0f;
             BallBalance_SetFeedforward(accel);
-            g_prev_target_speed = avg_target;
+            g_prev_target_speed = (int32_t)smooth_speed;
         }
 
         Motor_SpeedControl_Update();
@@ -301,6 +303,22 @@ int main(void)
         uint8_t key_r = KeyR_Scan();
 
         /* ================================================================ *
+         *  全局: 长按 KEY 急停 (所有运行态 + 采样态)
+         * ================================================================ */
+        if (key == KEY_EVENT_LONG &&
+            (g_state == STATE_RUNNING || g_state == STATE_CUSTOM_SAMP))
+        {
+            Track_Stop();
+            Motor_SpeedControl_Init();
+            BallBalance_Pause();
+            g_ball_demo_active = 0;
+            g_ball_demo_phase = BAL_DEMO_IDLE;
+            g_custom_sampling = 0;
+            g_state = STATE_IDLE;
+            g_oled_tick = 0;
+        }
+
+        /* ================================================================ *
          *  状态机
          * ================================================================ */
         switch (g_state)
@@ -328,17 +346,14 @@ int main(void)
                     break;
 
                 case MODE_BALL_DEMO:
-                    /* F2: 平衡球自主演示 */
-                    BallBalance_SetMode(BAL_MODE_AUTO);
-                    BallBalance_SetTarget(400.0f);
-                    BallBalance_Resume();
+                    /* F2: 平衡已在模式切换时启动, 这里启动自主演示 */
                     g_ball_demo_active = 1;
                     g_ball_demo_phase = BAL_DEMO_TO_POS;
                     g_run_limit = 0;
                     break;
 
                 case MODE_DUAL_8S:
-                    /* F3: 双控 8s */
+                    /* F3: 双控 8s — 平衡已在模式切换时启动, 这里启动循迹 */
                     g_track.base_speed = TRACK_BASE_SPEED_DUAL;
                     g_track.turn_limit = TRACK_TURN_LIMIT_DUAL;
                     PID_Init(&g_track.pid_line,
@@ -349,14 +364,11 @@ int main(void)
                     g_prev_target_speed = 0;
                     Track_Start();
                     Motor_SpeedControl_Init();
-                    BallBalance_SetMode(BAL_MODE_K230);
-                    BallBalance_SetTarget(400.0f);
-                    BallBalance_Resume();
                     g_run_limit = DUAL_TIMEOUT_8S;
                     break;
 
                 case MODE_DUAL_30S:
-                    /* F4: 双控 30s */
+                    /* F4: 双控 30s — 平衡已在模式切换时启动, 这里启动循迹 */
                     g_track.base_speed = TRACK_BASE_SPEED_DUAL;
                     g_track.turn_limit = TRACK_TURN_LIMIT_DUAL;
                     PID_Init(&g_track.pid_line,
@@ -367,23 +379,22 @@ int main(void)
                     g_prev_target_speed = 0;
                     Track_Start();
                     Motor_SpeedControl_Init();
-                    BallBalance_SetMode(BAL_MODE_K230);
-                    BallBalance_SetTarget(400.0f);
-                    BallBalance_Resume();
                     g_run_limit = DUAL_TIMEOUT_30S;
                     break;
 
                 case MODE_DUAL_CUSTOM:
-                    /* F5: 进入采样态 */
-                    BallBalance_Pause();
-                    StepMotor_Home(&g_step_motor);
-                    g_custom_sampling = 1;
-                    g_custom_sample_cnt = 0;
-                    g_custom_sample_sum = 0.0f;
-                    g_custom_sample_tick = 0;
-                    g_state = STATE_CUSTOM_SAMP;
-                    g_oled_tick = 0;
-                    goto skip_run_set;
+                    /* F5: KEY第一次 → 提示放球 */
+                    if (!g_custom_sampling)
+                    {
+                        g_custom_sampling = 1;
+                        g_custom_sample_cnt = 0;
+                        g_custom_sample_sum = 0.0f;
+                        g_custom_sample_tick = 0;
+                        g_state = STATE_CUSTOM_SAMP;
+                        g_oled_tick = 0;
+                        goto skip_run_set;
+                    }
+                    break;
 
                 default:
                     break;
@@ -397,12 +408,38 @@ int main(void)
                 /* KEY_L 短按: 切换到上一个模式 */
                 g_mode = (FuncMode)((g_mode == 0) ? (MODE_COUNT - 1) : ((int)g_mode - 1));
                 g_oled_tick = 0;
+                /* F2/F3/F4: 选中即自动启动零点平衡 */
+                if (g_mode == MODE_BALL_DEMO || g_mode == MODE_DUAL_8S || g_mode == MODE_DUAL_30S)
+                {
+                    BallBalance_SetTarget(400.0f);
+                    BallBalance_Resume();
+                    g_state = STATE_RUNNING;
+                }
+                /* F5: 选中即执行回零 */
+                if (g_mode == MODE_DUAL_CUSTOM)
+                {
+                    BallBalance_Pause();
+                    StepMotor_Home(&g_step_motor);
+                }
             }
             else if (key_r == KEY_EVENT_SHORT)
             {
                 /* KEY_R 短按: 切换到下一个模式 */
                 g_mode = (FuncMode)(((int)g_mode + 1) % (int)MODE_COUNT);
                 g_oled_tick = 0;
+                /* F2/F3/F4: 选中即自动启动零点平衡 */
+                if (g_mode == MODE_BALL_DEMO || g_mode == MODE_DUAL_8S || g_mode == MODE_DUAL_30S)
+                {
+                    BallBalance_SetTarget(400.0f);
+                    BallBalance_Resume();
+                    g_state = STATE_RUNNING;
+                }
+                /* F5: 选中即执行回零 */
+                if (g_mode == MODE_DUAL_CUSTOM)
+                {
+                    BallBalance_Pause();
+                    StepMotor_Home(&g_step_motor);
+                }
             }
             else if (key_l == KEY_EVENT_LONG)
             {
@@ -436,21 +473,11 @@ int main(void)
                 {
                 case BAL_DEMO_TO_POS:
                     BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_POS * 40.0f);
-                    /* 检查实际滤波位置是否在目标 ±1cm 内 */
                     if (ABSF(BallBalance_GetFilteredX() - (400.0f + BAL_DEMO_TARGET_POS * 40.0f)) < BAL_DEMO_TOLERANCE * 40.0f)
                     {
-                        g_ball_demo_phase = BAL_DEMO_BAL_POS;
-                    }
-                    break;
-                case BAL_DEMO_BAL_POS:
-                    /* 稳定在 +5cm 处 500ms 后折返 */
-                    if (g_ball_demo_hold_tick == 0)
-                        g_ball_demo_hold_tick = HAL_GetTick();
-                    if (HAL_GetTick() - g_ball_demo_hold_tick > 500)
-                    {
+                        /* 到达 +5cm, 立即折返到 -5cm */
                         BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_NEG * 40.0f);
                         g_ball_demo_phase = BAL_DEMO_TO_NEG;
-                        g_ball_demo_hold_tick = 0;
                     }
                     break;
                 case BAL_DEMO_TO_NEG:
@@ -460,34 +487,11 @@ int main(void)
                     }
                     break;
                 case BAL_DEMO_BAL_NEG:
-                    /* 稳定在 -5cm */
                     BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_NEG * 40.0f);
                     break;
                 default:
                     break;
                 }
-            }
-            /* F2 长按复位 */
-            if (g_mode == MODE_BALL_DEMO && key == KEY_EVENT_LONG)
-            {
-                BallBalance_Pause();
-                StepMotor_Home(&g_step_motor);
-                BallBalance_Resume();
-                g_ball_demo_phase = BAL_DEMO_IDLE;
-                g_ball_demo_active = 0;
-                BallBalance_SetTarget(400.0f);
-            }
-
-            /* 长按 KEY 急停 */
-            if (key == KEY_EVENT_LONG)
-            {
-                Track_Stop();
-                Motor_SpeedControl_Init();
-                BallBalance_Pause();
-                g_ball_demo_active = 0;
-                g_ball_demo_phase = BAL_DEMO_IDLE;
-                g_state = STATE_ESTOP;
-                g_oled_tick = 0;
             }
             break;
         }
@@ -579,7 +583,6 @@ int main(void)
                 {
                     /* 采样完成 → 启动双控 */
                     g_custom_target_x = g_custom_sample_sum / (float)BAL_CUSTOM_SAMPLE_COUNT;
-                    BallBalance_SetMode(BAL_MODE_K230);
                     BallBalance_SetTarget(g_custom_target_x);
                     BallBalance_Resume();
                     g_track.base_speed = TRACK_BASE_SPEED_DUAL;
@@ -610,7 +613,7 @@ int main(void)
         {
             g_oled_tick = HAL_GetTick();
             char buf[22];
-            /* 不清屏，直接覆盖（OLED_Show* 内部写像素） */
+            OLED_Clear();
 
             /* ---- 标定模式独立显示 ---- */
             if (g_state == STATE_CALIBRATION)
@@ -627,13 +630,13 @@ int main(void)
                     break;
                 case CAL_STEP_PLUS:
                     OLED_ShowString(15, 0, "Step 2/3", 12, 0);
-                    OLED_ShowString(0, 2, "Place +11.5cm", 12, 0);
+                    OLED_ShowString(0, 2, "Place +5cm", 12, 0);
                     snprintf(buf, sizeof(buf), "Samp %d/%d", prog, CAL_SAMPLE_COUNT);
                     OLED_ShowString(0, 5, (prog > 0) ? buf : "Press KEY", 12, 0);
                     break;
                 case CAL_STEP_MINUS:
                     OLED_ShowString(15, 0, "Step 3/3", 12, 0);
-                    OLED_ShowString(0, 2, "Place -11.5cm", 12, 0);
+                    OLED_ShowString(0, 2, "Place -5cm", 12, 0);
                     snprintf(buf, sizeof(buf), "Samp %d/%d", prog, CAL_SAMPLE_COUNT);
                     OLED_ShowString(0, 5, (prog > 0) ? buf : "Press KEY", 12, 0);
                     break;

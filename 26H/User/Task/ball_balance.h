@@ -18,16 +18,16 @@
 #include "stm32f4xx_hal.h"
 
 /* ---- PID 参数 (可在线调整) ---- */
-#define BAL_KP 0.02f /* 比例增益 (deg/pixel) */
-#define BAL_KD 3.4f   /* 微分增益 */
-#define BAL_KI 0.08f /* 积分增益 (小值, 消除稳态误差) */
+#define BAL_KP 0.018f /* 比例增益 (deg/pixel) */
+#define BAL_KD 4.8f   /* 微分增益 */
+#define BAL_KI 0.076f /* 积分增益 (小值, 消除稳态误差) */
 
 /* ---- 滤波器 ---- */
 #define BAL_EMA_ALPHA 0.30f /* EMA 平滑系数 (0~1, 越小越平滑) */
 
 /* ---- 限位 ---- */
 #define BAL_ANGLE_MAX 30.0f  /* 最大倾斜角 (°) */
-#define BAL_ANGLE_MIN -30.0f /* 最小倾斜角 (°) */
+#define BAL_ANGLE_MIN -28.0f /* 最小倾斜角 (°) */
 
 /* ---- 控制周期 (ms) ---- */
 #define BAL_CTRL_PERIOD_MS 10
@@ -53,12 +53,6 @@
 #define BAL_CUSTOM_SAMPLE_COUNT 10  /* 采样次数 */
 #define BAL_CUSTOM_SAMPLE_MS   50   /* 采样间隔 (ms) */
 
-/* ---- 操作模式 ---- */
-typedef enum {
-    BAL_MODE_K230 = 0,   /* 使用 K230 反馈的 X 坐标 */
-    BAL_MODE_AUTO = 1,   /* 自主模式: 纯内部目标控制 (F2 demo) */
-} BallBalance_Mode;
-
 /* ---- F2 自主演示阶段 ---- */
 typedef enum {
     BAL_DEMO_IDLE = 0,   /* 等待启动 */
@@ -73,9 +67,6 @@ void BallBalance_Init(float target_x);
 
 /* ---- 动态设置目标位置 ---- */
 void BallBalance_SetTarget(float target_x);
-
-/* ---- 设置操作模式 ---- */
-void BallBalance_SetMode(BallBalance_Mode mode);
 
 /* ---- 设置前馈加速度 (由底盘提供, 单位: cm/s²) ---- */
 void BallBalance_SetFeedforward(float accel);
