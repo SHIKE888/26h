@@ -18,16 +18,16 @@
 #include "stm32f4xx_hal.h"
 
 /* ---- PID 参数 (可在线调整) ---- */
-#define BAL_KP 0.018f /* 比例增益 (deg/pixel) */
-#define BAL_KD 2.0f   /* 微分增益 */
-#define BAL_KI 0.04f  /* 积分增益 (小值, 消除稳态误差) */
+#define BAL_KP 0.02f /* 比例增益 (deg/pixel) */
+#define BAL_KD 3.4f   /* 微分增益 */
+#define BAL_KI 0.08f /* 积分增益 (小值, 消除稳态误差) */
 
 /* ---- 滤波器 ---- */
 #define BAL_EMA_ALPHA 0.30f /* EMA 平滑系数 (0~1, 越小越平滑) */
 
 /* ---- 限位 ---- */
-#define BAL_ANGLE_MAX 20.0f  /* 最大倾斜角 (°) */
-#define BAL_ANGLE_MIN -15.0f /* 最小倾斜角 (°) */
+#define BAL_ANGLE_MAX 30.0f  /* 最大倾斜角 (°) */
+#define BAL_ANGLE_MIN -30.0f /* 最小倾斜角 (°) */
 
 /* ---- 控制周期 (ms) ---- */
 #define BAL_CTRL_PERIOD_MS 10
@@ -48,6 +48,9 @@ void BallBalance_Tick(void);
 /* ---- 暂停/恢复平衡控制 (失能步进电机时使用) ---- */
 void BallBalance_Pause(void);
 void BallBalance_Resume(void);
+
+/* ---- 发送电机指令 (在主循环中调用, 不能在中断中调用) ---- */
+void BallBalance_SendMotorCmd(void);
 
 /* ---- 获取当前状态 (供 OLED 显示) ---- */
 float BallBalance_GetAngle(void);

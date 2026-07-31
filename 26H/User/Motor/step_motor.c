@@ -24,24 +24,43 @@ StepMotor g_step_motor;
  * ========================================================================== */
 
 /**
- * @brief 通过 USART6 发送位置模式指令帧 (9 字节)
- * @note  使用 blocking 发送, 避免 DMA 竞争
+ * @brief 计算校验并填入帧尾
+ *        STEP_MOTOR_CHK_XOR=1: XOR 逐字节异或
+ *        STEP_MOTOR_CHK_XOR=0: 固定 0x6B
+ * @param data 帧缓冲区, data[len-1] 将被填入校验值
+ * @param len  帧总长度
+ */
+static void StepMotor_CalcXOR(uint8_t *data, uint8_t len)
+{
+#if STEP_MOTOR_CHK_XOR
+    uint8_t chk = 0;
+    for (uint8_t i = 0; i < len - 1; i++)
+        chk ^= data[i];
+    data[len - 1] = chk;
+#else
+    data[len - 1] = STEP_MOTOR_CHK_DEFAULT;
+#endif
+}
+
+/**
+ * @brief 通过 USART6 发送位置模式指令帧 (13 字节, 自动填入 XOR 校验)
+ * @note  使用 blocking 发送
  */
 static void StepMotor_SendPositionCmd(StepMotor *motor)
 {
+    StepMotor_CalcXOR(motor->tx_buf, 13);
     HAL_UART_Transmit(&huart6, motor->tx_buf, 13, 100);
 }
 
 /**
- * @brief 通过 USART6 发送通用短指令 (DMA 模式)
- * @param data 数据缓冲区指针
- * @param len  数据长度 (字节)
+ * @brief 通过 USART6 发送通用短指令 (阻塞模式, 自动填入 XOR 校验)
+ * @param data 帧缓冲区, data[len-1] 将被填入 XOR 校验值
+ * @param len  帧总长度
  */
 static void StepMotor_SendCmd(uint8_t *data, uint8_t len)
 {
-    while (huart6.gState == HAL_UART_STATE_BUSY_TX)
-        ;
-    HAL_UART_Transmit_DMA(&huart6, data, len);
+    StepMotor_CalcXOR(data, len);
+    HAL_UART_Transmit(&huart6, data, len, 100);
 }
 
 /* ========================================================================== *

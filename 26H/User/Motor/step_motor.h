@@ -22,14 +22,21 @@
 /** @brief 一圈对应的脉冲数 (1.8° 步进电机, 16 细分) */
 #define STEP_MOTOR_PULSE_PER_CIRCLE 3200.0f
 
-/** @brief 默认校验字节 (XOR 模式) */
+/** @brief 默认校验字节 (固定 6B 模式) */
 #define STEP_MOTOR_CHK_DEFAULT 0x6B
+
+/**
+ * @brief 校验模式选择
+ *        0 = 固定 0x6B (ChecksumMode=00, 驱动器默认)
+ *        1 = 动态 XOR  (ChecksumMode=01, 标准模式, 推荐)
+ */
+#define STEP_MOTOR_CHK_XOR 1
 
 /** @brief 角度模式默认转速 (RPM) */
 #define STEP_MOTOR_DEFAULT_SPEED 500
 
 /** @brief 角度模式默认加速度 (0x00~0xFF, 越大加减速越快) */
-#define STEP_MOTOR_DEFAULT_ACC 0xAF
+#define STEP_MOTOR_DEFAULT_ACC 0x70
 
 /** @brief 默认电机地址 */
 #define STEP_MOTOR_DEFAULT_ADDR 0x01

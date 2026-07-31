@@ -42,6 +42,7 @@
 "26h\step_motor.o"
 "26h\k230_uart.o"
 "26h\ball_balance.o"
+"26h\calibration.o"
 --strict --scatter "26H\26H.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

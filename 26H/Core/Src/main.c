@@ -38,6 +38,7 @@
 #include "step_motor.h"
 #include "k230_uart.h"
 #include "ball_balance.h"
+#include "calibration.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -63,6 +64,8 @@ typedef enum
     APP_IDLE = 0,
     APP_TRACKING,
     APP_ESTOP,
+    APP_CALIBRATION,
+    APP_ZERO_SET,
 } AppState;
 
 static volatile AppState g_app_state = APP_IDLE;
@@ -197,6 +200,9 @@ int main(void)
     /* ---- 钢球平衡控制器初始化 (目标 X=400) ---- */
     BallBalance_Init(400.0f);
 
+    /* ---- 标定数据加载 (开机从 Flash 读取) ---- */
+    Calibration_Init();
+
     /* 启动 TIM1 周期中断 (10ms, 需 CubeMX 中 TIM1 ARR=9999) */
     HAL_TIM_Base_Start_IT(&htim1);
     /* USER CODE END 2 */
@@ -225,9 +231,10 @@ int main(void)
         /* ---- 按键扫描 ---- */
         uint8_t key = Key_Scan();
         uint8_t key_l = KeyL_Scan();
+        uint8_t key_r = KeyR_Scan();
 
         /* ---- KEY_L 短按: 切换步进电机使能/失能 ---- */
-        if (key_l == KEY_EVENT_SHORT)
+        if (key_l == KEY_EVENT_SHORT && g_app_state != APP_CALIBRATION && g_app_state != APP_ZERO_SET)
         {
             g_step_motor_enabled = !g_step_motor_enabled;
             StepMotor_Enable(&g_step_motor, g_step_motor_enabled);
@@ -260,6 +267,33 @@ int main(void)
                 g_app_state = APP_TRACKING;
                 OLED_Clear();
             }
+            else if (key_l == KEY_EVENT_LONG)
+            {
+                /* 长按 KEY_L 进入标定模式 */
+                g_app_state = APP_CALIBRATION;
+                /* 停平衡, 确保电机回零后不动 */
+                BallBalance_Pause();
+                g_step_rearm_pending = 0;
+                /* 触发回零 */
+                StepMotor_Home(&g_step_motor);
+                /* 进入标定流程 */
+                Calibration_Enter();
+                OLED_Clear();
+            }
+            else if (key_r == KEY_EVENT_LONG)
+            {
+                /* 长按 KEY_R 进入步进电机绝对零点设置 */
+                /* 先暂停平衡, 防止主循环顶部 BallBalance_SendMotorCmd 再发指令 */
+                BallBalance_Pause();
+                g_app_state = APP_ZERO_SET;
+                g_step_rearm_pending = 0;
+                /* 先停电机, 确保静止后再失能 */
+                StepMotor_Stop(&g_step_motor);
+                HAL_Delay(50);                      /* 等待驱动器处理停止指令 */
+                StepMotor_Enable(&g_step_motor, 0); /* 失能电机, 可手动调整 */
+                g_step_motor_enabled = 0;
+                OLED_Clear();
+            }
             break;
 
         case APP_TRACKING:
@@ -279,10 +313,149 @@ int main(void)
                 g_app_state = APP_IDLE;
             }
             break;
+
+        case APP_CALIBRATION:
+        {
+            uint8_t cal_ret = Calibration_Process(key, key_l);
+            if (cal_ret != 0)
+            {
+                /* 退出标定模式: 恢复平衡控制, 回到 IDLE */
+                BallBalance_Resume();
+                /* 确保步进电机使能 */
+                if (!g_step_motor_enabled)
+                {
+                    g_step_motor_enabled = 1;
+                    StepMotor_Enable(&g_step_motor, 1);
+                }
+                g_app_state = APP_IDLE;
+                OLED_Clear();
+                if (cal_ret == 1)
+                {
+                    OLED_ShowString(0, 0, "Cal Saved!", 12, 0);
+                    HAL_Delay(800);
+                }
+                OLED_Clear();
+                OLED_ShowString(0, 0, "Press KEY", 12, 0);
+                OLED_ShowString(0, 1, "to START", 12, 0);
+            }
+            break;
         }
 
-        /* ---- OLED 刷新 (每 200ms) ---- */
-        if (HAL_GetTick() - g_oled_tick > 200)
+        case APP_ZERO_SET:
+        {
+            if (key == KEY_EVENT_SHORT)
+            {
+                /* 设置当前位置为绝对零点 */
+                StepMotor_ZeroPosition(&g_step_motor);
+                /* 退出: 使能电机并回零 */
+                StepMotor_Enable(&g_step_motor, 1);
+                g_step_motor_enabled = 1;
+                g_app_state = APP_IDLE;
+                BallBalance_Resume();
+                /* 触发回零 (归位到物理零点) */
+                StepMotor_Home(&g_step_motor);
+                OLED_Clear();
+            }
+            else if (key_r == KEY_EVENT_LONG)
+            {
+                /* 长按 KEY_R 取消: 使能电机, 恢复平衡, 返回 IDLE */
+                StepMotor_Enable(&g_step_motor, 1);
+                g_step_motor_enabled = 1;
+                g_app_state = APP_IDLE;
+                BallBalance_Resume();
+                OLED_Clear();
+            }
+            break;
+        }
+        }
+
+        /* ---- 零点设置 OLED 显示 (每 200ms) ---- */
+        if (g_app_state == APP_ZERO_SET && HAL_GetTick() - g_oled_tick > 200)
+        {
+            g_oled_tick = HAL_GetTick();
+            OLED_Clear();
+            OLED_ShowString(15, 0, "Zero Set", 12, 0);
+            OLED_ShowString(0, 2, "Motor OFF", 12, 0);
+            OLED_ShowString(0, 3, "Adjust angle", 12, 0);
+            OLED_ShowString(0, 5, "KEY:Set Zero", 12, 0);
+            OLED_ShowString(0, 6, "KEY_R:Quit", 12, 0);
+        }
+        /* ---- 标定模式 OLED 显示 (每 200ms) ---- */
+        else if (g_app_state == APP_CALIBRATION && HAL_GetTick() - g_oled_tick > 200)
+        {
+            g_oled_tick = HAL_GetTick();
+            char buf[22];
+            CalStep cs = Calibration_GetStep();
+            uint8_t prog = Calibration_GetSampleProgress();
+
+            OLED_Clear();
+
+            switch (cs)
+            {
+            case CAL_STEP_CENTER:
+                OLED_ShowString(15, 0, "Step 1/3", 12, 0);
+                OLED_ShowString(0, 2, "Place at 0cm", 12, 0);
+                OLED_ShowString(0, 3, "(CENTER)", 12, 0);
+                if (prog > 0)
+                {
+                    snprintf(buf, sizeof(buf), "Samp %d/%d", prog, CAL_SAMPLE_COUNT);
+                    OLED_ShowString(0, 5, buf, 12, 0);
+                }
+                else
+                {
+                    OLED_ShowString(0, 5, "Press KEY", 12, 0);
+                    OLED_ShowString(0, 6, "to sample", 12, 0);
+                }
+                break;
+
+            case CAL_STEP_PLUS:
+                OLED_ShowString(15, 0, "Step 2/3", 12, 0);
+                OLED_ShowString(0, 2, "Place at", 12, 0);
+                OLED_ShowString(0, 3, "+11.5cm", 12, 0);
+                if (prog > 0)
+                {
+                    snprintf(buf, sizeof(buf), "Samp %d/%d", prog, CAL_SAMPLE_COUNT);
+                    OLED_ShowString(0, 5, buf, 12, 0);
+                }
+                else
+                {
+                    OLED_ShowString(0, 5, "Press KEY", 12, 0);
+                    OLED_ShowString(0, 6, "to sample", 12, 0);
+                }
+                break;
+
+            case CAL_STEP_MINUS:
+                OLED_ShowString(15, 0, "Step 3/3", 12, 0);
+                OLED_ShowString(0, 2, "Place at", 12, 0);
+                OLED_ShowString(0, 3, "-11.5cm", 12, 0);
+                if (prog > 0)
+                {
+                    snprintf(buf, sizeof(buf), "Samp %d/%d", prog, CAL_SAMPLE_COUNT);
+                    OLED_ShowString(0, 5, buf, 12, 0);
+                }
+                else
+                {
+                    OLED_ShowString(0, 5, "Press KEY", 12, 0);
+                    OLED_ShowString(0, 6, "to sample", 12, 0);
+                }
+                break;
+
+            case CAL_STEP_RESULT:
+                OLED_ShowString(15, 0, "Cal Done!", 12, 0);
+                snprintf(buf, sizeof(buf), "N0:%.1f", (double)Calibration_GetResult(0));
+                OLED_ShowString(0, 2, buf, 12, 0);
+                snprintf(buf, sizeof(buf), "N1:%.1f", (double)Calibration_GetResult(1));
+                OLED_ShowString(0, 4, buf, 12, 0);
+                snprintf(buf, sizeof(buf), "N2:%.1f", (double)Calibration_GetResult(2));
+                OLED_ShowString(0, 6, buf, 12, 0);
+                OLED_ShowString(0, 7, "KEY:Sav LONG:Quit", 12, 0);
+                break;
+
+            default:
+                break;
+            }
+        }
+        else if (g_app_state != APP_CALIBRATION && g_app_state != APP_ZERO_SET && HAL_GetTick() - g_oled_tick > 200)
         {
             g_oled_tick = HAL_GetTick();
             char buf[22];
