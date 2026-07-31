@@ -48,12 +48,11 @@ typedef enum
 /** @brief 步进电机控制句柄 */
 typedef struct
 {
-    uint8_t addr;        /**< 电机地址 (0x01~0xFF) */
-    uint16_t speed;      /**< 当前转速 (RPM) */
-    uint8_t acc;         /**< 当前加速度 */
-    float now_angle;     /**< 当前累计角度 (°) */
-    uint8_t tx_buf[9];   /**< 发送缓冲区 */
-    uint8_t last_buf[9]; /**< 上一次发送缓冲区 (用于变更检测) */
+    uint8_t addr;       /**< 电机地址 (0x01~0xFF) */
+    uint16_t speed;     /**< 当前转速 (RPM) */
+    uint8_t acc;        /**< 当前加速度 */
+    float now_angle;    /**< 当前累计角度 (°) */
+    uint8_t tx_buf[13]; /**< 发送缓冲区 (FD帧=13字节) */
 } StepMotor;
 
 /* ========================================================================== *
@@ -61,6 +60,7 @@ typedef struct
  * ========================================================================== */
 
 extern StepMotor g_step_motor;
+extern volatile uint8_t g_step_motor_tx_done;
 
 /* ========================================================================== *
  *  API 函数声明

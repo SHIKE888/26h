@@ -37,6 +37,7 @@
 #include "key.h"
 #include "step_motor.h"
 #include "k230_uart.h"
+#include "ball_balance.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -68,6 +69,9 @@ static volatile AppState g_app_state = APP_IDLE;
 static volatile uint8_t g_trace_status = 0;
 static volatile uint32_t g_run_ticks = 0; /* 运行计时 (10ms分辨率) */
 static uint32_t g_oled_tick = 0;
+static uint8_t g_step_motor_enabled = 1; /* 步进电机使能标志 */
+static uint32_t g_step_rearm_tick = 0;   /* 使能后延时回零的时间戳 */
+static uint8_t g_step_rearm_pending = 0; /* 回零待执行标志 */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -117,6 +121,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         Track_Process(g_trace_status);
         Motor_SpeedControl_Update();
     }
+
+    /* 滚球平衡控制 (始终运行, 不受 TRACKING/IDLE 状态影响) */
+    BallBalance_Tick();
 }
 
 /* USER CODE END 0 */
@@ -187,6 +194,9 @@ int main(void)
     /* ---- K230 视觉模块 UART 接收 ---- */
     K230_UART_Init();
 
+    /* ---- 钢球平衡控制器初始化 (目标 X=400) ---- */
+    BallBalance_Init(400.0f);
+
     /* 启动 TIM1 周期中断 (10ms, 需 CubeMX 中 TIM1 ARR=9999) */
     HAL_TIM_Base_Start_IT(&htim1);
     /* USER CODE END 2 */
@@ -198,6 +208,20 @@ int main(void)
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
+        /* ---- 滚球平衡: 发送电机指令 (角度在 TIM1 中断中已计算) ---- */
+        BallBalance_SendMotorCmd();
+
+        /* ---- KEY_L 使能后非阻塞回零: 延时 200ms 后执行 Home ---- */
+        if (g_step_rearm_pending)
+        {
+            if (HAL_GetTick() - g_step_rearm_tick >= 200)
+            {
+                g_step_rearm_pending = 0;
+                StepMotor_Home(&g_step_motor); /* 回零 */
+                BallBalance_Resume();          /* 恢复平衡控制 */
+            }
+        }
+
         /* ---- 按键扫描 ---- */
         uint8_t key = Key_Scan();
         uint8_t key_l = KeyL_Scan();
@@ -205,13 +229,20 @@ int main(void)
         /* ---- KEY_L 短按: 切换步进电机使能/失能 ---- */
         if (key_l == KEY_EVENT_SHORT)
         {
-            static uint8_t step_motor_enabled = 1;
-            step_motor_enabled = !step_motor_enabled;
-            StepMotor_Enable(&g_step_motor, step_motor_enabled);
-            if (step_motor_enabled)
+            g_step_motor_enabled = !g_step_motor_enabled;
+            StepMotor_Enable(&g_step_motor, g_step_motor_enabled);
+            if (g_step_motor_enabled)
             {
-                HAL_Delay(200);                /* 等待使能生效 */
-                StepMotor_Home(&g_step_motor); /* 执行回零 */
+                /* 使能: 暂停平衡, 200ms 后自动回零并恢复平衡 */
+                BallBalance_Pause();
+                g_step_rearm_tick = HAL_GetTick();
+                g_step_rearm_pending = 1;
+            }
+            else
+            {
+                /* 失能: 暂停平衡控制, 取消待执行的回零 */
+                g_step_rearm_pending = 0;
+                BallBalance_Pause();
             }
         }
 
@@ -314,23 +345,19 @@ int main(void)
                      (int)g_track.base_speed);
             OLED_ShowString(0, 5, buf, 12, 0);
 
-            /* ---- 第6-7行: K230 钢球检测数据 ---- */
+            /* ---- 第6-7行: 滚球平衡状态 ---- */
             {
-                uint16_t x = g_k230_data.x;
-                uint16_t y = g_k230_data.y;
-                uint16_t t = g_k230_data.target;
+                float angle = BallBalance_GetAngle();
+                int32_t err = BallBalance_GetError();
+                float fx = BallBalance_GetFilteredX();
 
-                if (x == 65535)
-                    snprintf(buf, sizeof(buf), "Ball: ---/--- T%d", t);
-                else
-                    snprintf(buf, sizeof(buf), "Ball: %3u,%3u T%d", x, y, t);
+                snprintf(buf, sizeof(buf), "Bal E%+05ld A%+.1f", (long)err, angle);
                 OLED_ShowString(0, 6, buf, 12, 0);
 
-                /* 偏差: 目标X - 当前X */
-                if (x != 65535)
-                    snprintf(buf, sizeof(buf), "Dlt: %+d", (int)t - (int)x);
+                if (g_k230_data.x != 65535)
+                    snprintf(buf, sizeof(buf), "X%3u T%3u F%3.0f", g_k230_data.x, g_k230_data.target, fx);
                 else
-                    snprintf(buf, sizeof(buf), "Dlt: ---");
+                    snprintf(buf, sizeof(buf), "X--- T%3u F%3.0f", g_k230_data.target, fx);
                 OLED_ShowString(0, 7, buf, 12, 0);
             }
 

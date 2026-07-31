@@ -24,52 +24,24 @@ StepMotor g_step_motor;
  * ========================================================================== */
 
 /**
- * @brief 判断发送缓冲区是否发生变化
- * @param motor 电机句柄指针
- * @return 1=有变化, 0=无变化
- */
-static uint8_t StepMotor_HasChanged(StepMotor *motor)
-{
-    for (uint8_t i = 0; i < 9; i++)
-    {
-        if (motor->tx_buf[i] != motor->last_buf[i])
-            return 1;
-    }
-    return 0;
-}
-
-/**
- * @brief 更新"上一次发送"缓冲区
- * @param motor 电机句柄指针
- */
-static void StepMotor_UpdateLast(StepMotor *motor)
-{
-    for (uint8_t i = 0; i < 9; i++)
-        motor->last_buf[i] = motor->tx_buf[i];
-}
-
-/**
  * @brief 通过 USART6 发送位置模式指令帧 (9 字节)
- * @param motor 电机句柄指针
- * @note  仅在数据有变化时才发送，避免重复指令
+ * @note  使用 blocking 发送, 避免 DMA 竞争
  */
 static void StepMotor_SendPositionCmd(StepMotor *motor)
 {
-    if (!StepMotor_HasChanged(motor))
-        return;
-
-    HAL_UART_Transmit(&huart6, motor->tx_buf, 9, 100);
-    StepMotor_UpdateLast(motor);
+    HAL_UART_Transmit(&huart6, motor->tx_buf, 13, 100);
 }
 
 /**
- * @brief 通过 USART6 发送通用短指令
- * @param data  数据缓冲区
- * @param len   数据长度
+ * @brief 通过 USART6 发送通用短指令 (DMA 模式)
+ * @param data 数据缓冲区指针
+ * @param len  数据长度 (字节)
  */
 static void StepMotor_SendCmd(uint8_t *data, uint8_t len)
 {
-    HAL_UART_Transmit(&huart6, data, len, 100);
+    while (huart6.gState == HAL_UART_STATE_BUSY_TX)
+        ;
+    HAL_UART_Transmit_DMA(&huart6, data, len);
 }
 
 /* ========================================================================== *
@@ -81,30 +53,27 @@ static void StepMotor_SendCmd(uint8_t *data, uint8_t len)
  */
 void StepMotor_Init(StepMotor *motor, uint8_t addr, uint16_t speed, uint8_t acc)
 {
-    /* 清零句柄 */
     memset(motor, 0, sizeof(StepMotor));
-
-    /* 设置参数 */
     motor->addr = addr;
     motor->speed = speed;
     motor->acc = acc;
 
-    /* 构建默认 FD 位置模式帧 (停止状态, 脉冲=0)
-     * 帧格式: [Addr] [FD] [Dir|SpeedH] [SpeedL] [Acc] [PulseH] [PulseM] [PulseL] [Chk] */
+    /* 构建默认 FD 帧 (13字节, 脉冲=0, 相对模式, 立即执行)
+     * [0]=Addr [1]=FD [2]=Dir [3:4]=Speed [5]=Acc [6:9]=Pulse [10]=PosMode [11]=Sync [12]=Chk */
     motor->tx_buf[0] = addr;
     motor->tx_buf[1] = 0xFD;
-    motor->tx_buf[2] = 0x00 | ((speed >> 8) & 0x0F); /* Dir=CW, Speed高4位 */
-    motor->tx_buf[3] = speed & 0xFF;                 /* Speed低8位 */
-    motor->tx_buf[4] = acc;                          /* 加速度 */
-    motor->tx_buf[5] = 0x00;                         /* 脉冲[23:16] */
-    motor->tx_buf[6] = 0x00;                         /* 脉冲[15:8] */
-    motor->tx_buf[7] = 0x00;                         /* 脉冲[7:0] */
-    motor->tx_buf[8] = STEP_MOTOR_CHK_DEFAULT;
+    motor->tx_buf[2] = 0x00; /* Dir=CW */
+    motor->tx_buf[3] = (speed >> 8) & 0xFF;
+    motor->tx_buf[4] = speed & 0xFF;
+    motor->tx_buf[5] = acc;
+    motor->tx_buf[6] = 0x00;
+    motor->tx_buf[7] = 0x00;
+    motor->tx_buf[8] = 0x00;
+    motor->tx_buf[9] = 0x00;  /* Pulse=0 */
+    motor->tx_buf[10] = 0x00; /* PosMode=相对 */
+    motor->tx_buf[11] = 0x00; /* Sync=立即 */
+    motor->tx_buf[12] = STEP_MOTOR_CHK_DEFAULT;
 
-    /* 同步 last_buf */
-    memcpy(motor->last_buf, motor->tx_buf, 9);
-
-    /* 初始角度归零 */
     motor->now_angle = 0.0f;
 }
 
@@ -114,7 +83,6 @@ void StepMotor_Init(StepMotor *motor, uint8_t addr, uint16_t speed, uint8_t acc)
  */
 void StepMotor_SetAngle(StepMotor *motor, float angle)
 {
-    /* 计算角度差值 */
     float error_angle = angle - motor->now_angle;
 
     if (error_angle == 0.0f)
@@ -126,37 +94,30 @@ void StepMotor_SetAngle(StepMotor *motor, float angle)
     if (pulse == 0)
         return;
 
-    /* 确定方向 + 取脉冲绝对值 */
-    uint8_t dir_nibble;
-    uint32_t abs_pulse;
+    /* 方向: Dir=00 CW, Dir=01 CCW (协议文档) */
+    uint8_t dir = (pulse > 0) ? 0x00 : 0x01;
+    uint32_t abs_pulse = (pulse > 0) ? (uint32_t)pulse : (uint32_t)(-pulse);
 
-    if (pulse > 0)
-    {
-        dir_nibble = 0x10; /* CW */
-        abs_pulse = (uint32_t)pulse;
-    }
-    else
-    {
-        dir_nibble = 0x00; /* CCW */
-        abs_pulse = (uint32_t)(-pulse);
-    }
-
-    /* 填充 FD 位置模式帧
-     * [0]=Addr [1]=FD [2]=Dir|SpeedH [3]=SpeedL [4]=Acc
-     * [5]=Pulse[23:16] [6]=Pulse[15:8] [7]=Pulse[7:0] [8]=Chk */
+    /* FD 帧 13 字节:
+     * [0]=Addr  [1]=FD   [2]=Dir   [3:4]=Speed(u16 Big-Endian)
+     * [5]=Acc   [6:9]=Pulse(u32 Big-Endian)
+     * [10]=PosMode(00=相对)  [11]=Sync(00=立即)  [12]=Chk */
     motor->tx_buf[0] = motor->addr;
     motor->tx_buf[1] = 0xFD;
-    motor->tx_buf[2] = dir_nibble | ((motor->speed >> 8) & 0x0F);
-    motor->tx_buf[3] = motor->speed & 0xFF;
-    motor->tx_buf[4] = motor->acc;
-    motor->tx_buf[5] = (abs_pulse >> 16) & 0xFF;
-    motor->tx_buf[6] = (abs_pulse >> 8) & 0xFF;
-    motor->tx_buf[7] = abs_pulse & 0xFF;
-    motor->tx_buf[8] = STEP_MOTOR_CHK_DEFAULT;
+    motor->tx_buf[2] = dir;
+    motor->tx_buf[3] = (motor->speed >> 8) & 0xFF;
+    motor->tx_buf[4] = motor->speed & 0xFF;
+    motor->tx_buf[5] = motor->acc;
+    motor->tx_buf[6] = (abs_pulse >> 24) & 0xFF;
+    motor->tx_buf[7] = (abs_pulse >> 16) & 0xFF;
+    motor->tx_buf[8] = (abs_pulse >> 8) & 0xFF;
+    motor->tx_buf[9] = abs_pulse & 0xFF;
+    motor->tx_buf[10] = 0x00; /* 相对上一目标 */
+    motor->tx_buf[11] = 0x00; /* 立即执行 */
+    motor->tx_buf[12] = STEP_MOTOR_CHK_DEFAULT;
 
     StepMotor_SendPositionCmd(motor);
 
-    /* 更新当前角度 */
     motor->now_angle = angle;
 }
 

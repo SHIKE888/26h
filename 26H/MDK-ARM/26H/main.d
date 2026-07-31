@@ -52,3 +52,4 @@
 26h\main.o: ../User/Key/key.h
 26h\main.o: ../User/Motor/step_motor.h
 26h\main.o: ..\User\Task\k230_uart.h
+26h\main.o: ..\User\Task\ball_balance.h

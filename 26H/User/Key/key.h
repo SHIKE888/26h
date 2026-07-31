@@ -23,5 +23,6 @@
 void Key_Init(void);
 uint8_t Key_Scan(void);
 uint8_t KeyL_Scan(void);
+uint8_t KeyR_Scan(void);
 
 #endif /* KEY_KEY_H_ */
