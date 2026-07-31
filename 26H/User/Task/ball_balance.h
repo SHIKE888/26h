@@ -39,15 +39,54 @@
 #define BAL_MOTOR_SPEED 300 /* 转速 (RPM) */
 #define BAL_MOTOR_ACC 0x60  /* 加速度 */
 
+/* ---- 前馈参数 ---- */
+#define BAL_FF_K 0.15f        /* 加速度前馈系数 (初值, 需实测标定) */
+#define BAL_FF_DEADBAND 2.0f  /* 前馈死区: |加速度|低于此值不补偿 */
+
+/* ---- F2 自主演示参数 ---- */
+#define BAL_DEMO_TARGET_POS  5.0f   /* 目标位置 +5cm */
+#define BAL_DEMO_TARGET_NEG -5.0f   /* 目标位置 -5cm */
+#define BAL_DEMO_MAX_LIMIT   6.0f   /* 最大位移限制 (cm) */
+#define BAL_DEMO_TOLERANCE   0.8f   /* 到达容差 (cm) */
+
+/* ---- F5 自定义目标采样 ---- */
+#define BAL_CUSTOM_SAMPLE_COUNT 10  /* 采样次数 */
+#define BAL_CUSTOM_SAMPLE_MS   50   /* 采样间隔 (ms) */
+
+/* ---- 操作模式 ---- */
+typedef enum {
+    BAL_MODE_K230 = 0,   /* 使用 K230 反馈的 X 坐标 */
+    BAL_MODE_AUTO = 1,   /* 自主模式: 纯内部目标控制 (F2 demo) */
+} BallBalance_Mode;
+
+/* ---- F2 自主演示阶段 ---- */
+typedef enum {
+    BAL_DEMO_IDLE = 0,   /* 等待启动 */
+    BAL_DEMO_TO_POS,     /* 移向 +5cm */
+    BAL_DEMO_BAL_POS,    /* 平衡在 +5cm */
+    BAL_DEMO_TO_NEG,     /* 移向 -5cm */
+    BAL_DEMO_BAL_NEG,    /* 平衡在 -5cm */
+} BallDemoPhase;
+
 /* ---- 初始化 ---- */
 void BallBalance_Init(float target_x);
+
+/* ---- 动态设置目标位置 ---- */
+void BallBalance_SetTarget(float target_x);
+
+/* ---- 设置操作模式 ---- */
+void BallBalance_SetMode(BallBalance_Mode mode);
+
+/* ---- 设置前馈加速度 (由底盘提供, 单位: cm/s²) ---- */
+void BallBalance_SetFeedforward(float accel);
 
 /* ---- 主控制循环 (在 TIM1 10ms 回调中调用) ---- */
 void BallBalance_Tick(void);
 
-/* ---- 暂停/恢复平衡控制 (失能步进电机时使用) ---- */
+/* ---- 暂停/恢复平衡控制 ---- */
 void BallBalance_Pause(void);
 void BallBalance_Resume(void);
+uint8_t BallBalance_IsPaused(void);
 
 /* ---- 发送电机指令 (在主循环中调用, 不能在中断中调用) ---- */
 void BallBalance_SendMotorCmd(void);

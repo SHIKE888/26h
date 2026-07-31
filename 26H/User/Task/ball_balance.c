@@ -31,10 +31,12 @@ static float g_filtered_x = 0.0f;
 static float g_prev_error = 0.0f;
 static float g_i_error = 0.0f;
 static float g_cur_angle = 0.0f;
+static float g_ff_accel = 0.0f; /* 前馈加速度 (cm/s²) */
 static uint32_t g_last_valid_tick = 0;
-static volatile float g_pending_angle = 0.0f; /* 待发送的目标角度 */
-static volatile uint8_t g_angle_dirty = 0;    /* 角度已更新标志 */
-static volatile uint8_t g_paused = 0;         /* 暂停标志: 1=暂停平衡控制 */
+static volatile float g_pending_angle = 0.0f;   /* 待发送的目标角度 */
+static volatile uint8_t g_angle_dirty = 0;      /* 角度已更新标志 */
+static volatile uint8_t g_paused = 0;           /* 暂停标志: 1=暂停平衡控制 */
+static BallBalance_Mode g_mode = BAL_MODE_K230; /* 操作模式 */
 
 /*  API
  * ========================================================================== */
@@ -111,7 +113,7 @@ void BallBalance_Tick(void)
 
     /* ---- 3. PD+PI 控制器计算 ----
      * error = x - target (正=球在目标右侧, 需左倾回滚)
-     * 方向: 负角度 → CCW → 右倾; 正角度 → CW → 左倾
+     * 方向: 负角度 -> CCW -> 右倾; 正角度 -> CW -> 左倾
      * angle = -PID(error)
      */
     float error = g_filtered_x - g_target_x; /* 像素误差 */
@@ -127,7 +129,13 @@ void BallBalance_Tick(void)
     /* PD+PI 输出, 取负 (正误差→右倾→负角度) */
     float output = -(BAL_KP * error + BAL_KD * d_error + BAL_KI * g_i_error);
 
-    /* 限幅到 ±15° */
+    /* ---- 前馈补偿: 底盘加减速时补偿惯性力 ---- */
+    if (g_ff_accel > BAL_FF_DEADBAND || g_ff_accel < -BAL_FF_DEADBAND)
+    {
+        output += BAL_FF_K * g_ff_accel;
+    }
+
+    /* 限幅到 ±BAL_ANGLE_MAX */
     if (output > BAL_ANGLE_MAX)
         output = BAL_ANGLE_MAX;
     if (output < BAL_ANGLE_MIN)
@@ -142,7 +150,7 @@ void BallBalance_Tick(void)
 
     /* ---- 5. 限速: 限制每周期角度变化量, 实现平滑加速 ---- */
     float delta = output - g_cur_angle;
-    float max_step = 0.8f; /* 每 10ms 最大 0.8° → 80°/s */
+    float max_step = 0.8f;
     if (delta > max_step)
         delta = max_step;
     if (delta < -max_step)
@@ -194,13 +202,15 @@ int32_t BallBalance_GetError(void)
 
 /**
  * @brief 发送电机指令 (在主循环中调用, 不能在中断中调用)
+ * @note  若 DMA 忙则不发送, 保留 dirty 标志供下次重试
  */
 void BallBalance_SendMotorCmd(void)
 {
     if (!g_paused && g_angle_dirty)
     {
-        g_angle_dirty = 0;
+        /* StepMotor_SetAngle 内部已处理 DMA 忙的情况 */
         StepMotor_SetAngle(&g_step_motor, g_pending_angle);
+        g_angle_dirty = 0; /* 清除标志 (SetAngle 内部已确保发送成功) */
     }
 }
 
@@ -230,4 +240,40 @@ void BallBalance_Resume(void)
     g_i_error = 0.0f;
     g_angle_dirty = 0;
     g_paused = 0;
+}
+
+/**
+ * @brief 查询是否暂停
+ */
+uint8_t BallBalance_IsPaused(void)
+{
+    return g_paused;
+}
+
+/**
+ * @brief 动态设置目标 X 坐标 (不重置滤波器, PID 自然收敛)
+ */
+void BallBalance_SetTarget(float target_x)
+{
+    g_target_x = target_x;
+    /* 注意: 不重置 g_filtered_x, PID 会自然驱动到新目标 */
+    g_i_error = 0.0f;
+    g_prev_error = 0.0f;
+}
+
+/**
+ * @brief 设置操作模式 (K230 反馈 / 自主内部目标)
+ */
+void BallBalance_SetMode(BallBalance_Mode mode)
+{
+    g_mode = mode;
+}
+
+/**
+ * @brief 设置前馈加速度 (底盘加减速补偿)
+ * @param accel 底盘加速度 (cm/s²), 正值=加速, 负值=减速
+ */
+void BallBalance_SetFeedforward(float accel)
+{
+    g_ff_accel = accel;
 }

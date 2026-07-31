@@ -43,19 +43,25 @@ static void StepMotor_CalcXOR(uint8_t *data, uint8_t len)
 }
 
 /**
- * @brief 通过 USART6 发送位置模式指令帧 (13 字节, 自动填入 XOR 校验)
- * @note  使用 blocking 发送
+ * @brief 通过 USART6 发送位置模式指令帧 (13 字节, DMA 非阻塞)
+ * @note  tx_buf 需保持有效到 DMA 完成（StepMotor 结构体成员，持久有效）
  */
-static void StepMotor_SendPositionCmd(StepMotor *motor)
+/**
+ * @brief 通过 USART6 发送位置指令 (DMA, 非等待)
+ * @note  若 DMA 忙则跳过（调用方应保留 dirty 标志等待重试）
+ * @retval 1=发送成功, 0=DMA忙未发送
+ */
+static uint8_t StepMotor_SendPositionCmd(StepMotor *motor)
 {
+    if (huart6.gState != HAL_UART_STATE_READY)
+        return 0;
     StepMotor_CalcXOR(motor->tx_buf, 13);
-    HAL_UART_Transmit(&huart6, motor->tx_buf, 13, 100);
+    HAL_UART_Transmit_DMA(&huart6, motor->tx_buf, 13);
+    return 1;
 }
 
 /**
- * @brief 通过 USART6 发送通用短指令 (阻塞模式, 自动填入 XOR 校验)
- * @param data 帧缓冲区, data[len-1] 将被填入 XOR 校验值
- * @param len  帧总长度
+ * @brief 通过 USART6 发送通用短指令 (阻塞模式, 栈缓冲区安全)
  */
 static void StepMotor_SendCmd(uint8_t *data, uint8_t len)
 {
@@ -133,11 +139,12 @@ void StepMotor_SetAngle(StepMotor *motor, float angle)
     motor->tx_buf[9] = abs_pulse & 0xFF;
     motor->tx_buf[10] = 0x00; /* 相对上一目标 */
     motor->tx_buf[11] = 0x00; /* 立即执行 */
-    motor->tx_buf[12] = STEP_MOTOR_CHK_DEFAULT;
+    /* Chk 由 StepMotor_SendPositionCmd 填入 */
 
-    StepMotor_SendPositionCmd(motor);
-
-    motor->now_angle = angle;
+    if (StepMotor_SendPositionCmd(motor))
+    {
+        motor->now_angle = angle; /* 只有成功发送后才更新 */
+    }
 }
 
 /**

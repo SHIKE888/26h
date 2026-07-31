@@ -30,7 +30,7 @@
  *        0 = 固定 0x6B (ChecksumMode=00, 驱动器默认)
  *        1 = 动态 XOR  (ChecksumMode=01, 标准模式, 推荐)
  */
-#define STEP_MOTOR_CHK_XOR 1
+#define STEP_MOTOR_CHK_XOR 0
 
 /** @brief 角度模式默认转速 (RPM) */
 #define STEP_MOTOR_DEFAULT_SPEED 500
