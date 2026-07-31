@@ -19,7 +19,7 @@
 
 /* ---- PID 参数 (可在线调整) ---- */
 #define BAL_KP 0.018f /* 比例增益 (deg/pixel) */
-#define BAL_KD 4.8f   /* 微分增益 */
+#define BAL_KD 5.0f   /* 微分增益 */
 #define BAL_KI 0.076f /* 积分增益 (小值, 消除稳态误差) */
 
 /* ---- 滤波器 ---- */

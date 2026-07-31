@@ -1,7 +1,7 @@
 Dependencies for Project '26H', Target '26H': (DO NOT MODIFY !)
 CompilerVersion: 5060528::V5.06 update 5 (build 528)::.\ARMCC
 F (startup_stm32f411xe.s)(0x6A6B7AF4)(--cpu Cortex-M4.fp.sp -g --apcs=interwork -I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include--pd "__UVISION_VERSION SETA 543" --pd "STM32F411xE SETA 1" --pd "_RTE_ SETA 1"--list startup_stm32f411xe.lst --xref -o 26h\startup_stm32f411xe.o --depend 26h\startup_stm32f411xe.d)
-F (../Core/Src/main.c)(0x6A6CB38C)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../User/Control -I ../User/delay -I ../User/Encoder -I ../User/Motor -I ../User/Key -I ../User/OLED -I ../User/Trace -I ..\User\Task -I ..\User-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\main.o --omf_browse 26h\main.crf --depend 26h\main.d)
+F (../Core/Src/main.c)(0x6A6CBBCA)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../User/Control -I ../User/delay -I ../User/Encoder -I ../User/Motor -I ../User/Key -I ../User/OLED -I ../User/Trace -I ..\User\Task -I ..\User-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\main.o --omf_browse 26h\main.crf --depend 26h\main.d)
 I (../Core/Inc/main.h)(0x6A69FC47)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x6A4FBE0D)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x6A69CD96)
@@ -54,7 +54,7 @@ I (../User/Trace/trace.h)(0x6A6A0222)
 I (../User/Key/key.h)(0x6A6BBB2F)
 I (../User/Motor/step_motor.h)(0x6A6C6CB7)
 I (..\User\Task\k230_uart.h)(0x6A6BA306)
-I (..\User\Task\ball_balance.h)(0x6A6CB6BF)
+I (..\User\Task\ball_balance.h)(0x6A6CBBDE)
 I (..\User\calibration.h)(0x6A6CA3E9)
 F (../Core/Src/gpio.c)(0x6A6B7AEE)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../User/Control -I ../User/delay -I ../User/Encoder -I ../User/Motor -I ../User/Key -I ../User/OLED -I ../User/Trace -I ..\User\Task -I ..\User-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\gpio.o --omf_browse 26h\gpio.crf --depend 26h\gpio.d)
 I (../Core/Inc/gpio.h)(0x6A69CD94)
@@ -1473,8 +1473,8 @@ I (../Core/Inc/usart.h)(0x6A69FC46)
 I (../Core/Inc/main.h)(0x6A69FC47)
 I (D:\Keil_v5\ARM\ARMCC\include\string.h)(0x69286555)
 I (D:\Keil_v5\ARM\ARMCC\include\stdlib.h)(0x69286555)
-F (..\User\Task\ball_balance.c)(0x6A6CB8B7)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../User/Control -I ../User/delay -I ../User/Encoder -I ../User/Motor -I ../User/Key -I ../User/OLED -I ../User/Trace -I ..\User\Task -I ..\User-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\ball_balance.o --omf_browse 26h\ball_balance.crf --depend 26h\ball_balance.d)
-I (..\User\Task\ball_balance.h)(0x6A6CB6BF)
+F (..\User\Task\ball_balance.c)(0x6A6CBC0F)(--c99 -c --cpu Cortex-M4.fp.sp -g -O3 --apcs=interwork --split_sections -I ../Core/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc -I ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I ../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I ../Drivers/CMSIS/Include -I ../User/Control -I ../User/delay -I ../User/Encoder -I ../User/Motor -I ../User/Key -I ../User/OLED -I ../User/Trace -I ..\User\Task -I ..\User-I.\RTE\_26H-ID:\Keil_v5\ARM\Packs\ARM\CMSIS\6.2.0\CMSIS\Core\Include-D__UVISION_VERSION="543" -DSTM32F411xE -D_RTE_ -DUSE_HAL_DRIVER -DSTM32F411xE-o 26h\ball_balance.o --omf_browse 26h\ball_balance.crf --depend 26h\ball_balance.d)
+I (..\User\Task\ball_balance.h)(0x6A6CBBDE)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h)(0x6A4FBE0D)
 I (../Core/Inc/stm32f4xx_hal_conf.h)(0x6A69CD96)
 I (../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h)(0x6A4FBE0D)

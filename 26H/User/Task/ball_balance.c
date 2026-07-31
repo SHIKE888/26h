@@ -141,7 +141,7 @@ void BallBalance_Tick(void)
         }
     }
 
-    /* PD+PI 输出, 取负 (正误差→右倾→负角度) */
+    /* PD+PI 输出, 取负 (正误差->右倾->负角度) */
     float output = -(BAL_KP * error + BAL_KD * d_error + BAL_KI * g_i_error) + kick;
 
     /* ---- 前馈补偿: 底盘加减速时补偿惯性力 ---- */
