@@ -25,8 +25,8 @@
 #define TRACK_LINE_KD_DUAL 0.8f
 
 /* 缓启动参数 (双控模式) */
-#define TRACK_RAMP_STEP 16 /* 每 10ms 增加的速度步长 (800/500ms*10ms=16) */
-#define TRACK_RAMP_MS 3000  /* 缓启动时间 (ms) */
+#define TRACK_RAMP_STEP 3  /* 每 10ms 步长 (600/2000*10=3) */
+#define TRACK_RAMP_MS 2000 /* 缓启动时间 (ms), 缓减速亦同 */
 
 /* 双控时限宏 */
 #define DUAL_TIMEOUT_8S 800   /* 8秒 (单位: 10ms) */

@@ -119,8 +119,8 @@ void BallBalance_Tick(void)
     float error = g_filtered_x - g_target_x; /* 像素误差 */
     float d_error = error - g_prev_error;    /* 误差微分 */
 
-    /* 积分项 (带抗饱和限幅 + 容差内抑制) */
-    if (ABSF(error) > 2.0f) /* 容差范围内不累积积分 */
+    /* 积分项 (带抗饱和限幅 + 容差内抑制 + F2 保守) */
+    if (ABSF(error) > 6.0f) /* 仅大偏差时累积积分, 防止稳态蓄力 */
     {
         g_i_error += error * (BAL_CTRL_PERIOD_MS / 1000.0f);
     }
@@ -129,9 +129,10 @@ void BallBalance_Tick(void)
     if (g_i_error < -100.0f)
         g_i_error = -100.0f;
 
-    /* ---- 启动补偿: 仅在球明显偏离且静止时触发 ---- */
+    /* ---- 启动补偿: F2严格防超调时关闭, 其他模式可用 ---- */
     static uint32_t kick_cooldown_tick = 0;
     float kick = 0.0f;
+#if 1 /* 设为 0 可完全禁用 kick */
     if (ABSF(error) > 15.0f && ABSF(d_error) < 1.0f)
     {
         if (HAL_GetTick() - kick_cooldown_tick > 500)
@@ -140,9 +141,48 @@ void BallBalance_Tick(void)
             kick_cooldown_tick = HAL_GetTick();
         }
     }
+#endif
+
+    /* F2模式检测: 若速度上限非零, 切换为独立慢速闭环 */
+    extern uint16_t g_ball_speed_cap;
+    uint8_t is_demo_mode = (g_ball_speed_cap > 0);
+
+    /* F2 自适应: 根据目标方向选择参数 */
+    float kp, kd, ki, f2_max_step;
+    if (is_demo_mode)
+    {
+        if (g_target_x < 400.0f) /* 目标在左侧 (@ -5cm), 需CCW, 力度加大 */
+        {
+            kp = BAL_DEMO_KP_CCW;
+            kd = BAL_DEMO_KD_CCW;
+            ki = BAL_DEMO_KI;
+            f2_max_step = BAL_DEMO_MAX_STEP_CCW;
+        }
+        else /* 目标在右侧或零点, 正常力度 */
+        {
+            kp = BAL_DEMO_KP;
+            kd = BAL_DEMO_KD;
+            ki = BAL_DEMO_KI;
+            f2_max_step = BAL_DEMO_MAX_STEP;
+        }
+    }
+    else if (error > 0)
+    {
+        kp = BAL_KP;
+        kd = BAL_KD;
+        ki = BAL_KI;
+        f2_max_step = 0;
+    }
+    else
+    {
+        kp = BAL_KP * 1.1f;
+        kd = BAL_KD * 1.1f;
+        ki = BAL_KI * 1.1f;
+        f2_max_step = 0;
+    }
 
     /* PD+PI 输出, 取负 (正误差->右倾->负角度) */
-    float output = -(BAL_KP * error + BAL_KD * d_error + BAL_KI * g_i_error) + kick;
+    float output = -(kp * error + kd * d_error + ki * g_i_error) + kick;
 
     /* ---- 前馈补偿: 底盘加减速时补偿惯性力 ---- */
     if (g_ff_accel > BAL_FF_DEADBAND || g_ff_accel < -BAL_FF_DEADBAND)
@@ -158,27 +198,33 @@ void BallBalance_Tick(void)
 
     /* ---- 4. 死区: 误差很小时不动作, 分级抑制 ---- */
     float abs_err = ABSF(error);
-    if (abs_err < 1.5f)
+    if (abs_err < 3.0f)
     {
-        /* 极小误差: 完全停止输出, 冻结积分 */
+        /* 误差 < 3px: 完全停止 */
         output = 0.0f;
     }
-    else if (abs_err < 5.0f && ABSF(output) < 1.5f)
+    else if (abs_err < 10.0f && ABSF(output) < 3.0f)
     {
-        /* 小误差 + 小输出: 衰减输出, 抑制震荡 */
-        output *= 0.5f;
+        /* 中等偏差 + 小输出: 衰减到 30%, 缓慢靠近防震荡 */
+        output *= 0.3f;
     }
     /* 积分仅在误差 > 4px 时累积 (已在上面处理) */
 
-    /* ---- 5. 接近减速: 距离目标越近步长越小, 防止超调 ---- */
+    /* ---- 5. 接近减速: F2用独立极小步长, 普通模式用分级 ---- */
     float delta = output - g_cur_angle;
     float max_step;
-    if (abs_err < 8.0f)
-        max_step = 0.5f; /* 接近目标: 精细调节, 50°/s */
-    else if (abs_err < 30.0f)
-        max_step = 1.5f; /* 中等距离: 正常速度, 150°/s */
+    if (is_demo_mode)
+    {
+        max_step = f2_max_step; /* F2: 统一15°/s, 从容到位 */
+    }
+    else if (abs_err < 5.0f)
+        max_step = 0.25f;
+    else if (abs_err < 15.0f)
+        max_step = 0.8f;
+    else if (abs_err < 40.0f)
+        max_step = 1.5f;
     else
-        max_step = 3.0f; /* 远距离: 全速靠近, 300°/s */
+        max_step = 3.0f;
     if (delta > max_step)
         delta = max_step;
     else if (delta < -max_step)
@@ -191,7 +237,7 @@ void BallBalance_Tick(void)
     if (g_cur_angle < BAL_ANGLE_MIN)
         g_cur_angle = BAL_ANGLE_MIN;
 
-    /* ---- 6. 动态调速: 误差越大转速越高, 平滑过渡 ---- */
+    /* ---- 6. 动态调速: 误差越大转速越高, 但受上限约束 ---- */
     {
         float abs_err = ABSF(error);
         float ratio = abs_err / 150.0f; /* 150像素=全速阈值 */
@@ -199,7 +245,12 @@ void BallBalance_Tick(void)
             ratio = 1.0f;
         if (ratio < 0.05f)
             ratio = 0.05f; /* 最低 5% = 20 RPM, 避免停转 */
-        g_step_motor.speed = (uint16_t)(20.0f + ratio * (float)(BAL_MOTOR_SPEED - 20));
+        uint16_t target_speed = (uint16_t)(20.0f + ratio * (float)(BAL_MOTOR_SPEED - 20));
+        /* F2 上限约束: 不超过 BAL_MOTOR_SPEED_DEMO (由 main.c 设定) */
+        extern uint16_t g_ball_speed_cap;
+        if (g_ball_speed_cap > 0 && target_speed > g_ball_speed_cap)
+            target_speed = g_ball_speed_cap;
+        g_step_motor.speed = target_speed;
     }
 
     g_step_motor.acc = BAL_MOTOR_ACC;
@@ -286,13 +337,12 @@ uint8_t BallBalance_IsPaused(void)
  */
 void BallBalance_SetTarget(float target_x)
 {
-    if (g_target_x != target_x)
-    {
-        /* 目标确实变了，重置积分和微分防止跳变 */
-        g_i_error = 0.0f;
-        g_prev_error = 0.0f;
-    }
+    /* 目标改变时重置积分和微分历史, 但保留当前角度 */
     g_target_x = target_x;
+    g_i_error = 0.0f;
+    g_prev_error = 0.0f;
+    /* g_cur_angle 保留 — PID从当前角度平稳过渡到新目标 */
+    /* g_filtered_x 不重置 — PID 用实际位置驱动球到新目标 */
 }
 
 /**

@@ -112,6 +112,9 @@ static uint32_t g_custom_sample_tick = 0;
 /* F2 自主演示 */
 static uint8_t g_ball_demo_active = 0; /* F2 已启动 */
 static BallDemoPhase g_ball_demo_phase = BAL_DEMO_IDLE;
+
+/* 全局电机速度上限 (F2 用, 0=不限制) */
+uint16_t g_ball_speed_cap = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -163,9 +166,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                 cnt++;
         if (cnt >= 3 && cnt <= 5 && g_run_ticks > 100)
         {
-            Motor_EmergencyBrake(500);
-            g_state = STATE_ESTOP;
-            return;
+            if (g_mode == MODE_DUAL_8S || g_mode == MODE_DUAL_30S || g_mode == MODE_DUAL_CUSTOM)
+            {
+                /* F3/F4/F5: 标记缓减速, 主循环中执行 */
+                g_state = STATE_ESTOP;
+                g_step_rearm_pending = 2; /* 特殊标记: 缓减速中 */
+                g_step_rearm_tick = HAL_GetTick();
+                Track_SetBaseSpeed(200);
+                return;
+            }
+            else
+            {
+                Motor_EmergencyBrake(500);
+                g_state = STATE_ESTOP;
+                return;
+            }
         }
 
         /* 缓启动 ramp (F3/F4/F5) */
@@ -286,10 +301,31 @@ int main(void)
         /* ---- 滚球平衡: 发送电机指令 (角度在 TIM1 中断中已计算) ---- */
         BallBalance_SendMotorCmd();
 
-        /* ---- 非阻塞回零 ---- */
+        /* ---- 非阻塞回零 / 缓减速 ---- */
         if (g_step_rearm_pending)
         {
-            if (HAL_GetTick() - g_step_rearm_tick >= 200)
+            if (g_step_rearm_pending == 2)
+            {
+                /* 缓减速: 持续循迹 + 逐帧降速到0, 2秒完成 */
+                g_trace_status = Trace_ReadAll();
+                Track_Process(g_trace_status);
+                Motor_SpeedControl_Update();
+                BallBalance_SetFeedforward(0.0f);
+                /* 每10ms降3 → 2000/10=200步, 200*3=600, 从600降到0 */
+                int32_t cur_speed = (int32_t)g_track.base_speed - TRACK_RAMP_STEP;
+                if (cur_speed < 0)
+                    cur_speed = 0;
+                Track_SetBaseSpeed(cur_speed);
+                if (cur_speed == 0)
+                {
+                    Track_Stop();
+                    Motor_SpeedControl_Init();
+                    BallBalance_Pause();
+                    g_step_rearm_pending = 0;
+                    g_state = STATE_IDLE;
+                }
+            }
+            else if (HAL_GetTick() - g_step_rearm_tick >= 200)
             {
                 g_step_rearm_pending = 0;
                 StepMotor_Home(&g_step_motor);
@@ -308,6 +344,17 @@ int main(void)
         if (key == KEY_EVENT_LONG &&
             (g_state == STATE_RUNNING || g_state == STATE_CUSTOM_SAMP))
         {
+            if (g_mode == MODE_DUAL_30S || g_mode == MODE_DUAL_CUSTOM)
+            {
+                /* F4/F5: 缓减速停车 — 降低基础速度让车自然滑停 */
+                Track_SetBaseSpeed(200);
+                /* 等 1.5s 后彻底停车 */
+                for (volatile uint32_t i = 0; i < 150; i++)
+                {
+                    HAL_Delay(10);
+                    BallBalance_SendMotorCmd(); /* 保持平衡球运行 */
+                }
+            }
             Track_Stop();
             Motor_SpeedControl_Init();
             BallBalance_Pause();
@@ -346,9 +393,10 @@ int main(void)
                     break;
 
                 case MODE_BALL_DEMO:
-                    /* F2: 启动自主演示, 目标从 0cm → +5cm */
-                    BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_POS * 40.0f);
-                    BallBalance_Resume();
+                    /* F2: 启动自主演示, 目标从 0cm → +5cm, 限速 */
+                    g_ball_speed_cap = 120;                                      /* F2 独立限速 120 RPM */
+                    BallBalance_Resume();                                        /* 先用目标400初始化: g_filtered_x=400(真实0cm) */
+                    BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_POS * 40.0f); /* 再改目标到600 */
                     g_ball_demo_active = 1;
                     g_ball_demo_phase = BAL_DEMO_TO_POS;
                     g_run_limit = 0;
@@ -356,6 +404,7 @@ int main(void)
 
                 case MODE_DUAL_8S:
                     /* F3: 双控 8s — 平衡已在模式切换时启动, 这里启动循迹 */
+                    g_ball_speed_cap = 0; /* 恢复全速 */
                     g_track.base_speed = TRACK_BASE_SPEED_DUAL;
                     g_track.turn_limit = TRACK_TURN_LIMIT_DUAL;
                     PID_Init(&g_track.pid_line,
@@ -370,7 +419,8 @@ int main(void)
                     break;
 
                 case MODE_DUAL_30S:
-                    /* F4: 双控 30s — 平衡已在模式切换时启动, 这里启动循迹 */
+                    /* F4: 双控 30s */
+                    g_ball_speed_cap = 0; /* 恢复全速 */
                     g_track.base_speed = TRACK_BASE_SPEED_DUAL;
                     g_track.turn_limit = TRACK_TURN_LIMIT_DUAL;
                     PID_Init(&g_track.pid_line,
@@ -475,9 +525,9 @@ int main(void)
                 {
                 case BAL_DEMO_TO_POS:
                     BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_POS * 40.0f);
+                    /* 只要靠近就立即折返, 不需等待稳定 */
                     if (ABSF(BallBalance_GetFilteredX() - (400.0f + BAL_DEMO_TARGET_POS * 40.0f)) < BAL_DEMO_TOLERANCE * 40.0f)
                     {
-                        /* 到达 +5cm, 立即折返到 -5cm */
                         BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_NEG * 40.0f);
                         g_ball_demo_phase = BAL_DEMO_TO_NEG;
                     }
