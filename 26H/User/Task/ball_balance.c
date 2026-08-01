@@ -22,6 +22,9 @@
 /* 简易绝对值 (避免链接 math.h) */
 #define ABSF(x) ((x) < 0.0f ? -(x) : (x))
 
+/* 轨道水平补偿: 电机原点≠物理水平时的修正角 (°) */
+#define BAL_LEVEL_BIAS -0.8f
+
 /* ---- 外部引用 ---- */
 extern StepMotor g_step_motor;
 
@@ -143,136 +146,114 @@ void BallBalance_Tick(void)
     }
 #endif
 
-    /* F2模式检测: 若速度上限非零, 切换为独立慢速闭环 */
+    /* F2模式检测: 若速度上限非零, 切换为纯开环控制 */
     extern uint16_t g_ball_speed_cap;
     uint8_t is_demo_mode = (g_ball_speed_cap > 0);
 
-    /* F2 自适应: 三段参数 — 去+5cm / 折返 / 稳定在-5cm */
-    float kp, kd, ki, f2_max_step;
     if (is_demo_mode)
     {
-        if (g_target_x == 270.0f && ABSF(error) < 20.0f)
+        /* F2 纯开环: 完全不使用 PID, 用预设角度+时间序列控制 */
+        extern uint8_t g_ball_demo_phase;
+        float demo_angle = 0.0f;
+        switch (g_ball_demo_phase)
         {
-            /* 已接近-5cm目标 → 切到极保守参数抑制震荡 */
-            kp = BAL_DEMO_KP_NEG;
-            kd = BAL_DEMO_KD_NEG;
-            ki = BAL_DEMO_KI_NEG;
-            f2_max_step = BAL_DEMO_MAX_STEP_NEG;
+        case 1:
+            demo_angle = BAL_DEMO_ANGLE_LEFT;
+            break;
+        case 2:
+            demo_angle = 0.0f;
+            break;
+        case 3:
+            demo_angle = BAL_DEMO_ANGLE_RIGHT;
+            break;
+        case 4:
+            demo_angle = -2.0f;
+            break;
+        default:
+            break;
         }
-        else if (g_target_x == 270.0f)
-        {
-            /* 折返: 目标在-5cm但还没靠近 → 用CCW参数 */
-            kp = BAL_DEMO_KP_CCW;
-            kd = BAL_DEMO_KD_CCW;
-            ki = BAL_DEMO_KI;
-            f2_max_step = BAL_DEMO_MAX_STEP_CCW;
-        }
-        else
-        {
-            /* 去+5cm或初始态 → 正常参数 */
-            kp = BAL_DEMO_KP;
-            kd = BAL_DEMO_KD;
-            ki = BAL_DEMO_KI;
-            f2_max_step = BAL_DEMO_MAX_STEP;
-        }
-    }
-    else if (error > 0)
-    {
-        kp = BAL_KP;
-        kd = BAL_KD;
-        ki = BAL_KI;
-        f2_max_step = 0;
-    }
-    else
-    {
-        kp = BAL_KP * 1.1f;
-        kd = BAL_KD * 1.1f;
-        ki = BAL_KI * 1.1f;
-        f2_max_step = 0;
+        float output = demo_angle;
+        if (output > BAL_ANGLE_MAX)
+            output = BAL_ANGLE_MAX;
+        if (output < BAL_ANGLE_MIN)
+            output = BAL_ANGLE_MIN;
+        g_cur_angle = output;
+        g_step_motor.speed = BAL_DEMO_SPEED_CAP;
+        g_step_motor.acc = BAL_MOTOR_ACC;
+        goto set_pending;
     }
 
-    /* PD+PI 输出, 取负 (正误差->右倾->负角度) */
-    float output = -(kp * error + kd * d_error + ki * g_i_error) + kick;
-
-    /* ---- 前馈补偿: 底盘加减速时补偿惯性力 ---- */
-    if (g_ff_accel > BAL_FF_DEADBAND || g_ff_accel < -BAL_FF_DEADBAND)
+    /* ===== 以下为通用 PID 闭环控制 (F1/F3/F4/F5 共用) ===== */
     {
-        output += BAL_FF_K * g_ff_accel;
-    }
+        float output = -(BAL_KP * error + BAL_KD * d_error + BAL_KI * g_i_error) + kick;
 
-    /* 限幅到 ±BAL_ANGLE_MAX */
-    if (output > BAL_ANGLE_MAX)
-        output = BAL_ANGLE_MAX;
-    if (output < BAL_ANGLE_MIN)
-        output = BAL_ANGLE_MIN;
+        /* ---- 前馈补偿 ---- */
+        if (g_ff_accel > BAL_FF_DEADBAND || g_ff_accel < -BAL_FF_DEADBAND)
+            output += BAL_FF_K * g_ff_accel;
 
-    /* ---- 4. 死区: 误差很小时不动作, 分级抑制 ---- */
-    float abs_err = ABSF(error);
-    if (abs_err < 3.0f)
-    {
-        /* 误差 < 3px: 完全停止 */
-        output = 0.0f;
-    }
-    /* F2 -5cm 额外死区: 在270附近放宽到±30px(~±0.75cm) */
-    if (is_demo_mode && g_target_x == 270.0f && abs_err < 30.0f && ABSF(output) < 2.0f)
-    {
-        output *= 0.15f; /* 极弱输出, 几乎不动 */
-    }
-    else if (abs_err < 10.0f && ABSF(output) < 3.0f)
-    {
-        /* 中等偏差 + 小输出: 衰减到 30%, 缓慢靠近防震荡 */
-        output *= 0.3f;
-    }
-    /* 积分仅在误差 > 4px 时累积 (已在上面处理) */
+        /* 限幅 */
+        if (output > BAL_ANGLE_MAX)
+            output = BAL_ANGLE_MAX;
+        if (output < BAL_ANGLE_MIN)
+            output = BAL_ANGLE_MIN;
 
-    /* ---- 5. 接近减速: F2用独立极小步长, 普通模式用分级 ---- */
-    float delta = output - g_cur_angle;
-    float max_step;
-    if (is_demo_mode)
-    {
-        max_step = f2_max_step; /* F2: 统一15°/s, 从容到位 */
-    }
-    else if (abs_err < 5.0f)
-        max_step = 0.25f;
-    else if (abs_err < 15.0f)
-        max_step = 0.8f;
-    else if (abs_err < 40.0f)
-        max_step = 1.5f;
-    else
-        max_step = 3.0f;
-    if (delta > max_step)
-        delta = max_step;
-    else if (delta < -max_step)
-        delta = -max_step;
-    g_cur_angle += delta;
+        output += BAL_LEVEL_BIAS;
 
-    /* 再次限幅 */
-    if (g_cur_angle > BAL_ANGLE_MAX)
-        g_cur_angle = BAL_ANGLE_MAX;
-    if (g_cur_angle < BAL_ANGLE_MIN)
-        g_cur_angle = BAL_ANGLE_MIN;
-
-    /* ---- 6. 动态调速: 误差越大转速越高, 但受上限约束 ---- */
-    {
+        /* ---- 死区 + 分级抑制 ---- */
         float abs_err = ABSF(error);
-        float ratio = abs_err / 150.0f; /* 150像素=全速阈值 */
-        if (ratio > 1.0f)
-            ratio = 1.0f;
-        if (ratio < 0.05f)
-            ratio = 0.05f; /* 最低 5% = 20 RPM, 避免停转 */
-        uint16_t target_speed = (uint16_t)(20.0f + ratio * (float)(BAL_MOTOR_SPEED - 20));
-        /* F2 上限约束: 不超过 BAL_MOTOR_SPEED_DEMO (由 main.c 设定) */
-        extern uint16_t g_ball_speed_cap;
-        if (g_ball_speed_cap > 0 && target_speed > g_ball_speed_cap)
-            target_speed = g_ball_speed_cap;
-        g_step_motor.speed = target_speed;
-    }
+        if (abs_err < 3.0f)
+            output = 0.0f;
+        else if (abs_err < 10.0f && ABSF(output) < 3.0f)
+            output *= 0.3f;
 
-    g_step_motor.acc = BAL_MOTOR_ACC;
+        /* ---- 接近减速 ---- */
+        float delta = output - g_cur_angle;
+        float max_step;
+        if (abs_err < 5.0f)
+            max_step = 0.25f;
+        else if (abs_err < 15.0f)
+            max_step = 0.8f;
+        else if (abs_err < 40.0f)
+            max_step = 1.5f;
+        else
+            max_step = 3.0f;
+        if (delta > max_step)
+            delta = max_step;
+        else if (delta < -max_step)
+            delta = -max_step;
+        g_cur_angle += delta;
+
+        if (g_cur_angle > BAL_ANGLE_MAX)
+            g_cur_angle = BAL_ANGLE_MAX;
+        if (g_cur_angle < BAL_ANGLE_MIN)
+            g_cur_angle = BAL_ANGLE_MIN;
+
+        /* ---- 动态调速 ---- */
+        {
+            float ratio = abs_err / 150.0f;
+            if (ratio > 1.0f)
+                ratio = 1.0f;
+            if (ratio < 0.05f)
+                ratio = 0.05f;
+            uint16_t target_speed = (uint16_t)(20.0f + ratio * (float)(BAL_MOTOR_SPEED - 20));
+            if (g_ball_speed_cap > 0 && target_speed > g_ball_speed_cap)
+                target_speed = g_ball_speed_cap;
+            g_step_motor.speed = target_speed;
+        }
+        g_step_motor.acc = BAL_MOTOR_ACC;
+    } /* end PID block */
 
     /* ---- 7. 设置待发送角度 (主循环中发送, 不在中断中调用阻塞函数) ---- */
+set_pending:
     g_pending_angle = g_cur_angle;
-    g_angle_dirty = 1; /* 先写值, 后置标志, 避免主循环读到旧值 */
+    /* 首次启动时, 叠加轨道水平补偿到初始角度 */
+    static uint8_t first_run = 1;
+    if (first_run)
+    {
+        g_pending_angle = BAL_LEVEL_BIAS; /* 上电即置水平补偿角 */
+        first_run = 0;
+    }
+    g_angle_dirty = 1;
 
     /* 保存状态用于下次迭代 */
     g_prev_error = error;

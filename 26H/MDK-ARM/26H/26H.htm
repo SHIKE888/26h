@@ -3,9 +3,9 @@
 <title>Static Call Graph - [26H\26H.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image 26H\26H.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060528: Last Updated: Sat Aug 01 05:39:01 2026
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060528: Last Updated: Sat Aug 01 13:20:03 2026
 <BR><P>
-<H3>Maximum Stack Usage =        384 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
+<H3>Maximum Stack Usage =        376 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
 __rt_entry_main &rArr; main &rArr; OLED_ShowNum &rArr; OLED_ShowChar &rArr; OLED_Set_Pos &rArr; OLED_WR_CMD &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 <P>
@@ -279,7 +279,7 @@ Global Symbols
 <P><STRONG><a name="[174]"></a>__rt_entry_postsh_1</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, __rtentry2.o(.ARM.Collect$$rtentry$$00000009))
 
 <P><STRONG><a name="[69]"></a>__rt_entry_main</STRONG> (Thumb, 0 bytes, Stack size unknown bytes, __rtentry2.o(.ARM.Collect$$rtentry$$0000000D))
-<BR><BR>[Stack]<UL><LI>Max Depth = 384 + Unknown Stack Size
+<BR><BR>[Stack]<UL><LI>Max Depth = 376 + Unknown Stack Size
 <LI>Call Chain = __rt_entry_main &rArr; main &rArr; OLED_ShowNum &rArr; OLED_ShowChar &rArr; OLED_Set_Pos &rArr; OLED_WR_CMD &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[6a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
@@ -798,15 +798,15 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[83]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;_btod_emul
 </UL>
 
-<P><STRONG><a name="[14a]"></a>BallBalance_GetAngle</STRONG> (Thumb, 8 bytes, Stack size 0 bytes, ball_balance.o(i.BallBalance_GetAngle))
+<P><STRONG><a name="[149]"></a>BallBalance_GetAngle</STRONG> (Thumb, 8 bytes, Stack size 0 bytes, ball_balance.o(i.BallBalance_GetAngle))
 <BR><BR>[Called By]<UL><LI><a href="#[6a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[14b]"></a>BallBalance_GetError</STRONG> (Thumb, 24 bytes, Stack size 0 bytes, ball_balance.o(i.BallBalance_GetError))
+<P><STRONG><a name="[14a]"></a>BallBalance_GetError</STRONG> (Thumb, 24 bytes, Stack size 0 bytes, ball_balance.o(i.BallBalance_GetError))
 <BR><BR>[Called By]<UL><LI><a href="#[6a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[149]"></a>BallBalance_GetFilteredX</STRONG> (Thumb, 8 bytes, Stack size 0 bytes, ball_balance.o(i.BallBalance_GetFilteredX))
+<P><STRONG><a name="[14b]"></a>BallBalance_GetFilteredX</STRONG> (Thumb, 8 bytes, Stack size 0 bytes, ball_balance.o(i.BallBalance_GetFilteredX))
 <BR><BR>[Called By]<UL><LI><a href="#[6a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
@@ -843,8 +843,8 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[6a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[99]"></a>BallBalance_Tick</STRONG> (Thumb, 986 bytes, Stack size 64 bytes, ball_balance.o(i.BallBalance_Tick))
-<BR><BR>[Stack]<UL><LI>Max Depth = 64<LI>Call Chain = BallBalance_Tick
+<P><STRONG><a name="[99]"></a>BallBalance_Tick</STRONG> (Thumb, 854 bytes, Stack size 56 bytes, ball_balance.o(i.BallBalance_Tick))
+<BR><BR>[Stack]<UL><LI>Max Depth = 56<LI>Call Chain = BallBalance_Tick
 </UL>
 <BR>[Calls]<UL><LI><a href="#[96]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_GetTick
 </UL>
@@ -1783,7 +1783,8 @@ Global Symbols
 <LI><a href="#[11f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MotorA_SetSpeed
 <LI><a href="#[127]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Calc
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_TIM_PeriodElapsedCallback
+<BR>[Called By]<UL><LI><a href="#[6a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
+<LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_TIM_PeriodElapsedCallback
 </UL>
 
 <P><STRONG><a name="[124]"></a>Motor_Stop</STRONG> (Thumb, 72 bytes, Stack size 8 bytes, motor.o(i.Motor_Stop))
@@ -2028,6 +2029,7 @@ Global Symbols
 
 <P><STRONG><a name="[f3]"></a>Trace_ReadAll</STRONG> (Thumb, 44 bytes, Stack size 0 bytes, trace.o(i.Trace_ReadAll))
 <BR><BR>[Called By]<UL><LI><a href="#[138]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Trace_Init
+<LI><a href="#[6a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 <LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_TIM_PeriodElapsedCallback
 </UL>
 
@@ -2050,7 +2052,8 @@ Global Symbols
 <LI><a href="#[13a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Reset
 <LI><a href="#[127]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PID_Calc
 </UL>
-<BR>[Called By]<UL><LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_TIM_PeriodElapsedCallback
+<BR>[Called By]<UL><LI><a href="#[6a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
+<LI><a href="#[e1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;HAL_TIM_PeriodElapsedCallback
 </UL>
 
 <P><STRONG><a name="[f5]"></a>Track_SetBaseSpeed</STRONG> (Thumb, 18 bytes, Stack size 8 bytes, track.o(i.Track_SetBaseSpeed))
@@ -2123,14 +2126,16 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[77]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__printf
 </UL>
 
-<P><STRONG><a name="[6a]"></a>main</STRONG> (Thumb, 2898 bytes, Stack size 136 bytes, main.o(i.main))
-<BR><BR>[Stack]<UL><LI>Max Depth = 384 + Unknown Stack Size
+<P><STRONG><a name="[6a]"></a>main</STRONG> (Thumb, 2862 bytes, Stack size 128 bytes, main.o(i.main))
+<BR><BR>[Stack]<UL><LI>Max Depth = 376 + Unknown Stack Size
 <LI>Call Chain = main &rArr; OLED_ShowNum &rArr; OLED_ShowChar &rArr; OLED_Set_Pos &rArr; OLED_WR_CMD &rArr; HAL_I2C_Mem_Write &rArr; I2C_RequestMemoryWrite &rArr; I2C_WaitOnMasterAddressFlagUntilTimeout
 </UL>
 <BR>[Calls]<UL><LI><a href="#[ef]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Track_Stop
 <LI><a href="#[13d]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Track_Start
 <LI><a href="#[f5]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Track_SetBaseSpeed
+<LI><a href="#[f6]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Track_Process
 <LI><a href="#[139]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Track_Init
+<LI><a href="#[f3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Trace_ReadAll
 <LI><a href="#[138]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Trace_Init
 <LI><a href="#[135]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StepMotor_ZeroPosition
 <LI><a href="#[134]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;StepMotor_Stop
@@ -2143,6 +2148,7 @@ Global Symbols
 <LI><a href="#[12c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OLED_ShowChar
 <LI><a href="#[12a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OLED_Init
 <LI><a href="#[f2]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OLED_Clear
+<LI><a href="#[f8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Motor_SpeedControl_Update
 <LI><a href="#[f0]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Motor_SpeedControl_Init
 <LI><a href="#[123]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Motor_Init
 <LI><a href="#[122]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Motor_BrakeUpdate
@@ -2179,9 +2185,9 @@ Global Symbols
 <LI><a href="#[146]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;BallBalance_Resume
 <LI><a href="#[f1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;BallBalance_Pause
 <LI><a href="#[95]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;BallBalance_Init
-<LI><a href="#[149]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;BallBalance_GetFilteredX
-<LI><a href="#[14b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;BallBalance_GetError
-<LI><a href="#[14a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;BallBalance_GetAngle
+<LI><a href="#[14b]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;BallBalance_GetFilteredX
+<LI><a href="#[14a]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;BallBalance_GetError
+<LI><a href="#[149]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;BallBalance_GetAngle
 <LI><a href="#[137]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SystemClock_Config
 <LI><a href="#[14c]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__aeabi_f2d
 <LI><a href="#[70]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;__2snprintf

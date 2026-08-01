@@ -111,7 +111,7 @@ static uint32_t g_custom_sample_tick = 0;
 
 /* F2 自主演示 */
 static uint8_t g_ball_demo_active = 0; /* F2 已启动 */
-static BallDemoPhase g_ball_demo_phase = BAL_DEMO_IDLE;
+BallDemoPhase g_ball_demo_phase = BAL_DEMO_IDLE;
 
 /* 全局电机速度上限 (F2 用, 0=不限制) */
 uint16_t g_ball_speed_cap = 0;
@@ -273,6 +273,8 @@ int main(void)
                    STEP_MOTOR_DEFAULT_SPEED,
                    STEP_MOTOR_DEFAULT_ACC);
     StepMotor_Enable(&g_step_motor, 1); /* 使能电机 */
+    /* 上电立即回原点, 确保机械零点校准 */
+    StepMotor_Home(&g_step_motor);
 
     OLED_Clear();
     OLED_ShowString(0, 0, "Press KEY", 12, 0);
@@ -306,7 +308,10 @@ int main(void)
         {
             if (g_step_rearm_pending == 2)
             {
-                /* 延时2秒后刹停 (F3/F4/F5 十字/岔路) */
+                /* 延时2秒后刹停, 期间保持循迹 */
+                g_trace_status = Trace_ReadAll();
+                Track_Process(g_trace_status);
+                Motor_SpeedControl_Update();
                 if (HAL_GetTick() - g_step_rearm_tick >= 2000)
                 {
                     Track_Stop();
@@ -351,6 +356,7 @@ int main(void)
             BallBalance_Pause();
             g_ball_demo_active = 0;
             g_ball_demo_phase = BAL_DEMO_IDLE;
+            g_ball_speed_cap = 0; /* 退出F2, 恢复PID模式 */
             g_custom_sampling = 0;
             g_state = STATE_IDLE;
             g_oled_tick = 0;
@@ -384,10 +390,9 @@ int main(void)
                     break;
 
                 case MODE_BALL_DEMO:
-                    /* F2: 启动自主演示, 目标从 0cm → +5cm, 限速 */
-                    g_ball_speed_cap = 120;                                      /* F2 独立限速 120 RPM */
-                    BallBalance_Resume();                                        /* 先用目标400初始化: g_filtered_x=400(真实0cm) */
-                    BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_POS * 40.0f); /* 再改目标到600 */
+                    /* F2: 纯开环控制, 不依赖PID */
+                    g_ball_speed_cap = BAL_DEMO_SPEED_CAP;
+                    BallBalance_Resume(); /* 解除暂停, Tick 恢复运行 */
                     g_ball_demo_active = 1;
                     g_ball_demo_phase = BAL_DEMO_TO_POS;
                     g_run_limit = 0;
@@ -451,12 +456,18 @@ int main(void)
                 /* KEY_L 短按: 切换到上一个模式 */
                 g_mode = (FuncMode)((g_mode == 0) ? (MODE_COUNT - 1) : ((int)g_mode - 1));
                 g_oled_tick = 0;
-                /* F2/F3/F4: 选中即自动启动零点平衡 (保持在 IDLE, 等待 KEY 启动功能) */
-                if (g_mode == MODE_BALL_DEMO || g_mode == MODE_DUAL_8S || g_mode == MODE_DUAL_30S)
+                /* F2: 选中即回正+补偿, 不启动自平衡 */
+                if (g_mode == MODE_BALL_DEMO)
                 {
+                    BallBalance_Pause();           /* 停PID */
+                    StepMotor_Home(&g_step_motor); /* 回原点 */
+                }
+                /* F3/F4: 选中即自动启动零点平衡 + 前馈初始化 */
+                else if (g_mode == MODE_DUAL_8S || g_mode == MODE_DUAL_30S)
+                {
+                    g_prev_target_speed = 0; /* 重置前馈历史 */
                     BallBalance_SetTarget(400.0f);
                     BallBalance_Resume();
-                    /* 不改变 g_state, 保持在 IDLE */
                 }
                 /* F5: 选中即执行回零 */
                 if (g_mode == MODE_DUAL_CUSTOM)
@@ -470,12 +481,18 @@ int main(void)
                 /* KEY_R 短按: 切换到下一个模式 */
                 g_mode = (FuncMode)(((int)g_mode + 1) % (int)MODE_COUNT);
                 g_oled_tick = 0;
-                /* F2/F3/F4: 选中即自动启动零点平衡 (保持在 IDLE) */
-                if (g_mode == MODE_BALL_DEMO || g_mode == MODE_DUAL_8S || g_mode == MODE_DUAL_30S)
+                /* F2: 选中即回正+补偿 */
+                if (g_mode == MODE_BALL_DEMO)
                 {
+                    BallBalance_Pause();
+                    StepMotor_Home(&g_step_motor);
+                }
+                /* F3/F4: 选中即自动启动零点平衡 + 前馈初始化 */
+                else if (g_mode == MODE_DUAL_8S || g_mode == MODE_DUAL_30S)
+                {
+                    g_prev_target_speed = 0; /* 重置前馈历史 */
                     BallBalance_SetTarget(400.0f);
                     BallBalance_Resume();
-                    /* 不改变 g_state */
                 }
                 /* F5: 选中即执行回零 */
                 if (g_mode == MODE_DUAL_CUSTOM)
@@ -509,27 +526,40 @@ int main(void)
         /* ---- RUNNING: 循迹 | 平衡演示 | 双控 ---- */
         case STATE_RUNNING:
         {
-            /* F2 自主演示阶段机 */
+            /* F2 纯开环时间序列阶段机 */
             if (g_mode == MODE_BALL_DEMO && g_ball_demo_active)
             {
+                static uint32_t demo_phase_tick = 0;
                 switch (g_ball_demo_phase)
                 {
-                case BAL_DEMO_TO_POS:
-                    BallBalance_SetTarget(570.0f); /* 固定 +5cm 像素坐标 */
-                    if (ABSF(BallBalance_GetFilteredX() - 570.0f) < BAL_DEMO_TOLERANCE * 40.0f)
+                case BAL_DEMO_TO_POS: /* 左倾 → 球右滚到+5cm, T1 */
+                    if (demo_phase_tick == 0)
+                        demo_phase_tick = HAL_GetTick();
+                    if (HAL_GetTick() - demo_phase_tick >= BAL_DEMO_TILT_LEFT)
                     {
-                        BallBalance_SetTarget(270.0f); /* 固定 -5cm 像素坐标 */
-                        g_ball_demo_phase = BAL_DEMO_TO_NEG;
+                        g_ball_demo_phase = BAL_DEMO_BAL_POS; /* 回正+等待 T2 */
+                        demo_phase_tick = 0;
                     }
                     break;
-                case BAL_DEMO_TO_NEG:
-                    if (ABSF(BallBalance_GetFilteredX() - 270.0f) < BAL_DEMO_TOLERANCE * 40.0f)
+                case BAL_DEMO_BAL_POS: /* 回正, 等待 T2 */
+                    if (demo_phase_tick == 0)
+                        demo_phase_tick = HAL_GetTick();
+                    if (HAL_GetTick() - demo_phase_tick >= BAL_DEMO_PAUSE1_MS)
+                    {
+                        g_ball_demo_phase = BAL_DEMO_TO_NEG; /* 右倾, T3 */
+                        demo_phase_tick = 0;
+                    }
+                    break;
+                case BAL_DEMO_TO_NEG: /* 右倾 → 球左滚到-5cm, T_RIGHT */
+                    if (demo_phase_tick == 0)
+                        demo_phase_tick = HAL_GetTick();
+                    if (HAL_GetTick() - demo_phase_tick >= BAL_DEMO_TILT_RIGHT)
                     {
                         g_ball_demo_phase = BAL_DEMO_BAL_NEG;
+                        demo_phase_tick = 0;
                     }
                     break;
-                case BAL_DEMO_BAL_NEG:
-                    BallBalance_SetTarget(270.0f); /* 维持 -5cm */
+                case BAL_DEMO_BAL_NEG: /* 永久回正保持 */
                     break;
                 default:
                     break;

@@ -43,23 +43,14 @@
 #define BAL_FF_K 1.0f         /* 加速度前馈系数 */
 #define BAL_FF_DEADBAND 0.01f /* 死区: |accel|低于此值不补偿 */
 
-/* ---- F2 独立慢速控制参数 (完全独立, 与原PID解耦) ---- */
-#define BAL_DEMO_KP 0.045f      /* KP: 足够克服静摩擦 */
-#define BAL_DEMO_KD 3.0f      /* 极高KD: 强阻尼防超调 */
-#define BAL_DEMO_KI 0.2f      /* KI */
-#define BAL_DEMO_MAX_STEP 0.7f /* 最大步长: 70°/s, 适中到位 */
-#define BAL_DEMO_SPEED_CAP 100 /* 电机上限100RPM */
-
-/* F2 折返方向参数 (CCW方向需要更大力度) */
-#define BAL_DEMO_KP_CCW 0.004f     /* CCW KP */
-#define BAL_DEMO_KD_CCW 5.0f      /* CCW KD */
-#define BAL_DEMO_MAX_STEP_CCW 0.4f /* CCW 步长 */
-
-/* F2 -5cm 稳定参数 (抑制大幅震荡) */
-#define BAL_DEMO_KP_NEG 0.002f     /* 极低 KP: 抑制震荡 */
-#define BAL_DEMO_KD_NEG 5.0f      /* 极高 KD: 强大阻尼 */
-#define BAL_DEMO_KI_NEG 0.05f      /* 极低 KI */
-#define BAL_DEMO_MAX_STEP_NEG 0.2f /* 极小步长: 20°/s */
+/* ---- F2 纯开环控制参数 (时间序列, 完全不依赖PID反馈) ---- */
+#define BAL_DEMO_ANGLE_LEFT 8.0f  /* 左倾角度 (°) */
+#define BAL_DEMO_TILT_LEFT 180   /* 左倾持续时间 (ms) */
+#define BAL_DEMO_PAUSE1_MS 360/* 第一次回正等待 (ms) */
+#define BAL_DEMO_ANGLE_RIGHT -12.0f /* 右倾角度 (°, 负值=右倾) */
+#define BAL_DEMO_TILT_RIGHT 450   /* 右倾持续时间 (ms) */
+#define BAL_DEMO_SPEED_CAP 100    /* 电机上限RPM */
+#define BAL_DEMO_SPEED_CAP 100   /* 电机上限RPM */
 
 /* F2 目标与容差 */
 #define BAL_DEMO_TARGET_POS 5.0f  /* 目标位置 +5cm */
