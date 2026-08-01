@@ -40,20 +40,26 @@
 #define BAL_MOTOR_ACC 0x80  /* 加速度 — 平滑响应 */
 
 /* ---- 前馈参数 ---- */
-#define BAL_FF_K 1.0f        /* 加速度前馈系数 */
+#define BAL_FF_K 1.0f         /* 加速度前馈系数 */
 #define BAL_FF_DEADBAND 0.01f /* 死区: |accel|低于此值不补偿 */
 
 /* ---- F2 独立慢速控制参数 (完全独立, 与原PID解耦) ---- */
-#define BAL_DEMO_KP 0.02f      /* 适中KP: 足够克服静摩擦 */
-#define BAL_DEMO_KD 8.0f       /* 极高KD: 强阻尼防超调 */
-#define BAL_DEMO_KI 0.08f       /* 极低KI */
-#define BAL_DEMO_MAX_STEP 0.7f /* 最大步长: 25°/s, 缓慢到位 */
-#define BAL_DEMO_SPEED_CAP 100  /* 电机上限100RPM */
+#define BAL_DEMO_KP 0.045f      /* KP: 足够克服静摩擦 */
+#define BAL_DEMO_KD 3.0f      /* 极高KD: 强阻尼防超调 */
+#define BAL_DEMO_KI 0.2f      /* KI */
+#define BAL_DEMO_MAX_STEP 0.7f /* 最大步长: 70°/s, 适中到位 */
+#define BAL_DEMO_SPEED_CAP 100 /* 电机上限100RPM */
 
 /* F2 折返方向参数 (CCW方向需要更大力度) */
-#define BAL_DEMO_KP_CCW 0.022f      /* CCW KP 加大 ~50% */
-#define BAL_DEMO_KD_CCW 10.0f       /* CCW KD 保持 */
-#define BAL_DEMO_MAX_STEP_CCW 0.8f /* CCW 步长加大 */
+#define BAL_DEMO_KP_CCW 0.004f     /* CCW KP */
+#define BAL_DEMO_KD_CCW 5.0f      /* CCW KD */
+#define BAL_DEMO_MAX_STEP_CCW 0.4f /* CCW 步长 */
+
+/* F2 -5cm 稳定参数 (抑制大幅震荡) */
+#define BAL_DEMO_KP_NEG 0.002f     /* 极低 KP: 抑制震荡 */
+#define BAL_DEMO_KD_NEG 5.0f      /* 极高 KD: 强大阻尼 */
+#define BAL_DEMO_KI_NEG 0.05f      /* 极低 KI */
+#define BAL_DEMO_MAX_STEP_NEG 0.2f /* 极小步长: 20°/s */
 
 /* F2 目标与容差 */
 #define BAL_DEMO_TARGET_POS 5.0f  /* 目标位置 +5cm */

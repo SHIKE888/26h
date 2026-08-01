@@ -147,19 +147,29 @@ void BallBalance_Tick(void)
     extern uint16_t g_ball_speed_cap;
     uint8_t is_demo_mode = (g_ball_speed_cap > 0);
 
-    /* F2 自适应: 根据目标方向选择参数 */
+    /* F2 自适应: 三段参数 — 去+5cm / 折返 / 稳定在-5cm */
     float kp, kd, ki, f2_max_step;
     if (is_demo_mode)
     {
-        if (g_target_x < 400.0f) /* 目标在左侧 (@ -5cm), 需CCW, 力度加大 */
+        if (g_target_x == 270.0f && ABSF(error) < 20.0f)
         {
+            /* 已接近-5cm目标 → 切到极保守参数抑制震荡 */
+            kp = BAL_DEMO_KP_NEG;
+            kd = BAL_DEMO_KD_NEG;
+            ki = BAL_DEMO_KI_NEG;
+            f2_max_step = BAL_DEMO_MAX_STEP_NEG;
+        }
+        else if (g_target_x == 270.0f)
+        {
+            /* 折返: 目标在-5cm但还没靠近 → 用CCW参数 */
             kp = BAL_DEMO_KP_CCW;
             kd = BAL_DEMO_KD_CCW;
             ki = BAL_DEMO_KI;
             f2_max_step = BAL_DEMO_MAX_STEP_CCW;
         }
-        else /* 目标在右侧或零点, 正常力度 */
+        else
         {
+            /* 去+5cm或初始态 → 正常参数 */
             kp = BAL_DEMO_KP;
             kd = BAL_DEMO_KD;
             ki = BAL_DEMO_KI;
@@ -202,6 +212,11 @@ void BallBalance_Tick(void)
     {
         /* 误差 < 3px: 完全停止 */
         output = 0.0f;
+    }
+    /* F2 -5cm 额外死区: 在270附近放宽到±30px(~±0.75cm) */
+    if (is_demo_mode && g_target_x == 270.0f && abs_err < 30.0f && ABSF(output) < 2.0f)
+    {
+        output *= 0.15f; /* 极弱输出, 几乎不动 */
     }
     else if (abs_err < 10.0f && ABSF(output) < 3.0f)
     {

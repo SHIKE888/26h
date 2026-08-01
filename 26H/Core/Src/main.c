@@ -168,11 +168,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         {
             if (g_mode == MODE_DUAL_8S || g_mode == MODE_DUAL_30S || g_mode == MODE_DUAL_CUSTOM)
             {
-                /* F3/F4/F5: 标记缓减速, 主循环中执行 */
+                /* F3/F4/F5: 标记停车, 主循环中延时2秒后刹停 */
                 g_state = STATE_ESTOP;
-                g_step_rearm_pending = 2; /* 特殊标记: 缓减速中 */
+                g_step_rearm_pending = 2; /* 特殊标记: 等待刹停 */
                 g_step_rearm_tick = HAL_GetTick();
-                Track_SetBaseSpeed(200);
+                Track_SetBaseSpeed(0); /* 立即停马达 */
                 return;
             }
             else
@@ -306,17 +306,8 @@ int main(void)
         {
             if (g_step_rearm_pending == 2)
             {
-                /* 缓减速: 持续循迹 + 逐帧降速到0, 2秒完成 */
-                g_trace_status = Trace_ReadAll();
-                Track_Process(g_trace_status);
-                Motor_SpeedControl_Update();
-                BallBalance_SetFeedforward(0.0f);
-                /* 每10ms降3 → 2000/10=200步, 200*3=600, 从600降到0 */
-                int32_t cur_speed = (int32_t)g_track.base_speed - TRACK_RAMP_STEP;
-                if (cur_speed < 0)
-                    cur_speed = 0;
-                Track_SetBaseSpeed(cur_speed);
-                if (cur_speed == 0)
+                /* 延时2秒后刹停 (F3/F4/F5 十字/岔路) */
+                if (HAL_GetTick() - g_step_rearm_tick >= 2000)
                 {
                     Track_Stop();
                     Motor_SpeedControl_Init();
@@ -524,22 +515,21 @@ int main(void)
                 switch (g_ball_demo_phase)
                 {
                 case BAL_DEMO_TO_POS:
-                    BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_POS * 40.0f);
-                    /* 只要靠近就立即折返, 不需等待稳定 */
-                    if (ABSF(BallBalance_GetFilteredX() - (400.0f + BAL_DEMO_TARGET_POS * 40.0f)) < BAL_DEMO_TOLERANCE * 40.0f)
+                    BallBalance_SetTarget(570.0f); /* 固定 +5cm 像素坐标 */
+                    if (ABSF(BallBalance_GetFilteredX() - 570.0f) < BAL_DEMO_TOLERANCE * 40.0f)
                     {
-                        BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_NEG * 40.0f);
+                        BallBalance_SetTarget(270.0f); /* 固定 -5cm 像素坐标 */
                         g_ball_demo_phase = BAL_DEMO_TO_NEG;
                     }
                     break;
                 case BAL_DEMO_TO_NEG:
-                    if (ABSF(BallBalance_GetFilteredX() - (400.0f + BAL_DEMO_TARGET_NEG * 40.0f)) < BAL_DEMO_TOLERANCE * 40.0f)
+                    if (ABSF(BallBalance_GetFilteredX() - 270.0f) < BAL_DEMO_TOLERANCE * 40.0f)
                     {
                         g_ball_demo_phase = BAL_DEMO_BAL_NEG;
                     }
                     break;
                 case BAL_DEMO_BAL_NEG:
-                    BallBalance_SetTarget(400.0f + BAL_DEMO_TARGET_NEG * 40.0f);
+                    BallBalance_SetTarget(270.0f); /* 维持 -5cm */
                     break;
                 default:
                     break;
